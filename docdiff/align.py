@@ -26,9 +26,49 @@ def diff_ops(a: list[str], b: list[str]) -> list[dict]:
             i -= 1
     return list(reversed(ops))
 
-if __name__ == "__main__":
+def detect_moves(ops: list[dict]) -> list[dict]:
+    text_to_delete_op = {}
+    for op in ops:
+        if op["op"] == "delete":
+            text = op["a"]
+            if text not in text_to_delete_op:
+                text_to_delete_op[text] = []
+            text_to_delete_op[text].append(op)
 
-    a=["This is a test.", "This is another test.", "This is the last test."]
-    b=["This is a test.", "This is a modified test.", "This is the last test."]
-    for op in diff_ops(a, b):
+    moved_ops_map = {}
+    matched_inserts = set()
+    
+    for op in ops:
+        if op["op"] == "insert":
+            text = op["b"]
+            if text in text_to_delete_op and text_to_delete_op[text]:
+                del_op = text_to_delete_op[text].pop(0)
+                moved_ops_map[id(del_op)] = {
+                    "op": "moved",
+                    "a": text,
+                    "b": text
+                }
+                matched_inserts.add(id(op))
+
+    new_ops = []
+    for op in ops:
+        if id(op) in moved_ops_map:
+            new_ops.append(moved_ops_map[id(op)])
+        elif id(op) in matched_inserts:
+            continue
+        else:
+            new_ops.append(op)
+
+    return new_ops
+
+
+if __name__ == "__main__":
+    a = ["甲", "乙", "丙", "丁", "戊"]
+    b = ["甲", "丁", "乙", "丙", "戊"]
+
+    raw_ops = diff_ops(a, b)
+
+    final_ops = detect_moves(raw_ops)  
+
+    for op in final_ops:
         print(op)
