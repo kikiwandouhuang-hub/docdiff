@@ -1,0 +1,54 @@
+from .parser import extract_paragraphs
+from .align import diff_ops, detect_moves
+
+def diff_docx(old_path: str, new_path: str) -> list[dict]:
+    a = extract_paragraphs(old_path)
+    b = extract_paragraphs(new_path)
+
+    head = 0
+    min_len = min(len(a), len(b))
+    while head < min_len and a[head] == b[head]:
+        head += 1
+
+    tail = 0
+    while (
+        tail < min_len - head
+        and a[len(a) - 1 - tail] == b[len(b) - 1 - tail]
+    ):
+        tail += 1
+
+    mid_a = a[head : len(a) - tail] if tail > 0 else a[head:]
+    mid_b = b[head : len(b) - tail] if tail > 0 else b[head:]
+
+    mid_ops = diff_ops(mid_a, mid_b)
+    mid_ops = detect_moves(mid_ops)
+
+    ops = []
+
+    for i in range(head):
+        ops.append({"op": "unchanged", "old_idx": i, "new_idx": i})
+
+    for op in mid_ops:
+        new_op = op.copy()
+        if "old_idx" in new_op:
+            new_op["old_idx"] += head
+        if "new_idx" in new_op:
+            new_op["new_idx"] += head
+        ops.append(new_op)
+
+    a_tail_start = len(a) - tail
+    b_tail_start = len(b) - tail
+    for i in range(tail):
+        ops.append({
+            "op": "unchanged",
+            "old_idx": a_tail_start + i,
+            "new_idx": b_tail_start + i
+        })
+
+    return ops
+
+if __name__ == "__main__":
+    import sys, json
+    ops = diff_docx(sys.argv[1], sys.argv[2])
+    for op in ops:
+        print(json.dumps(op, ensure_ascii=False))
