@@ -15,60 +15,63 @@ def diff_ops(a: list[str], b: list[str]) -> list[dict]:
     i, j = len(a), len(b)
     while i > 0 or j > 0:
         if i > 0 and j > 0 and a[i - 1] == b[j - 1]:
-            ops.append({"op": "equal", "a": a[i - 1], "b": b[j - 1]})
+            ops.append({"op": "unchanged", "old_idx": i - 1, "new_idx": j - 1})
             i -= 1
             j -= 1
         elif j > 0 and (i == 0 or dp[i][j - 1] >= dp[i - 1][j]):
-            ops.append({"op": "insert", "a": None, "b": b[j - 1]})
+            ops.append({"op": "inserted", "new_idx": j - 1})
             j -= 1
         else:
-            ops.append({"op": "delete", "a": a[i - 1], "b": None})
+            ops.append({"op": "deleted", "old_idx": i - 1})
             i -= 1
     return list(reversed(ops))
 
-def detect_moves(ops: list[dict]) -> list[dict]:
-    text_to_delete_op = {}
+def detect_moves(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
+    deleted_items = []
+    inserted_items = []
     for op in ops:
-        if op["op"] == "delete":
-            text = op["a"]
-            if text not in text_to_delete_op:
-                text_to_delete_op[text] = []
-            text_to_delete_op[text].append(op)
+        if op["op"] == "deleted":
+            deleted_items.append((op["old_idx"], a[op["old_idx"]]))
+        elif op["op"] == "inserted":
+            inserted_items.append((op["new_idx"], b[op["new_idx"]]))
 
-    moved_ops_map = {}
-    matched_inserts = set()
-    
-    for op in ops:
-        if op["op"] == "insert":
-            text = op["b"]
-            if text in text_to_delete_op and text_to_delete_op[text]:
-                del_op = text_to_delete_op[text].pop(0)
-                moved_ops_map[id(del_op)] = {
-                    "op": "moved",
-                    "a": text,
-                    "b": text
-                }
-                matched_inserts.add(id(op))
+    text_to_old_idxs = {}
+    for old_idx, text in deleted_items:
+        if text not in text_to_old_idxs:
+            text_to_old_idxs[text] = []
+        text_to_old_idxs[text].append(old_idx)
+
+    matched_old_idxs = set()
+    matched_new_idxs = set()
+    old_to_new_map = {}
+
+    for new_idx, text in inserted_items:
+        if text in text_to_old_idxs and text_to_old_idxs[text]:
+            matched_old = text_to_old_idxs[text].pop(0)
+            matched_old_idxs.add(matched_old)
+            matched_new_idxs.add(new_idx)
+            old_to_new_map[matched_old] = new_idx
 
     new_ops = []
     for op in ops:
-        if id(op) in moved_ops_map:
-            new_ops.append(moved_ops_map[id(op)])
-        elif id(op) in matched_inserts:
-            continue
+        op_type = op["op"]
+        if op_type == "deleted":
+            old_idx = op["old_idx"]
+            if old_idx in matched_old_idxs:
+                new_ops.append({
+                    "op": "moved",
+                    "old_idx": old_idx,
+                    "new_idx": old_to_new_map[old_idx]
+                })
+            else:
+                new_ops.append(op)
+        elif op_type == "inserted":
+            new_idx = op["new_idx"]
+            if new_idx in matched_new_idxs:
+                continue
+            else:
+                new_ops.append(op)
         else:
             new_ops.append(op)
 
     return new_ops
-
-
-if __name__ == "__main__":
-    a = ["甲", "乙", "丙", "丁", "戊"]
-    b = ["甲", "丁", "乙", "丙", "戊"]
-
-    raw_ops = diff_ops(a, b)
-
-    final_ops = detect_moves(raw_ops)  
-
-    for op in final_ops:
-        print(op)
