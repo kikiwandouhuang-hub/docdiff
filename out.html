@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>文档对比报告</title>
+    <style>
+        :root {
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        body {
+            font-family: var(--font-sans);
+            background-color: #f8fafc;
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .header {
+            padding: 20px 24px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+        .stats {
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+            align-items: center;
+        }
+        .stat-pill {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+        .stat-total { color: var(--text-muted); font-weight: 500; margin-right: 8px; }
+        .pill-ins { background: #dcfce7; color: #166534; }
+        .pill-del { background: #fee2e2; color: #991b1b; }
+        .pill-mod { background: #fef3c7; color: #92400e; }
+        .pill-mov { background: #dbeafe; color: #1e40af; }
+
+        .diff-grid {
+            display: flex;
+            flex-direction: column;
+        }
+        .diff-row {
+            display: grid;
+            grid-template-columns: 50px calc(50% - 50px) 50px calc(50% - 50px);
+            border-bottom: 1px solid var(--border);
+        }
+        .diff-row:last-child { border-bottom: none; }
+        
+        .num {
+            padding: 12px 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            user-select: none;
+            border-right: 1px solid var(--border);
+        }
+        .num:nth-child(3) { border-left: 1px solid var(--border); }
+        
+        .code {
+            padding: 12px 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* 高级背景调色 */
+        .bg-unchanged { background: #ffffff; }
+        .bg-inserted { background: #f0fdf4; }
+        .bg-deleted { background: #fef2f2; }
+        .bg-modified { background: #fffbeb; }
+        .bg-moved { background: #eff6ff; }
+        
+        /* 核心亮点：空白状态的高级斜线纹理 */
+        .bg-empty { 
+            background: #f8fafc;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px);
+        }
+
+        /* 段内 Inline Token 渲染（圆润质感） */
+        .token-ins { background: #bbf7d0; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        .token-del { background: #fecaca; color: #991b1b; padding: 2px 6px; border-radius: 4px; text-decoration: line-through; }
+
+        /* 移动标签 */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            margin-right: 8px;
+        }
+        .tag-moved { background: #bfdbfe; color: #1e3a8a; border: 1px solid #93c5fd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📑 智能文档对比分析</h1>
+            <div class="stats">
+                <span class="stat-total">共发现 1 处核心变更</span>
+                <span class="stat-pill pill-ins">+0 增</span>
+                <span class="stat-pill pill-del">-0 删</span>
+                <span class="stat-pill pill-mod">~1 改</span>
+                <span class="stat-pill pill-mov">⇅0 移</span>
+            </div>
+        </div>
+        <div class="diff-grid">
+            
+        <div class="diff-row">
+            <div class="num bg-unchanged">1</div>
+            <div class="code bg-unchanged">段落一，深蓝色的夜空中星光熠熠，倒映在宁静的海面上泛起层层银白色的微光。</div>
+            <div class="num bg-unchanged">1</div>
+            <div class="code bg-unchanged">段落一，深蓝色的夜空中星光熠熠，倒映在宁静的海面上泛起层层银白色的微光。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">2</div>
+            <div class="code bg-unchanged">段落二，为了确保系统在高并发场景下的稳定运行，工程师重新设计了分布式缓存架构。</div>
+            <div class="num bg-unchanged">2</div>
+            <div class="code bg-unchanged">段落二，为了确保系统在高并发场景下的稳定运行，工程师重新设计了分布式缓存架构。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-modified">3</div>
+            <div class="code bg-modified">段落三，新<span class="token-del">鲜烘焙</span>的咖啡豆散发出浓郁的焦糖香气，弥漫在清晨小镇街道的每一个角落。</div>
+            <div class="num bg-modified">3</div>
+            <div class="code bg-modified">段落三，新的咖啡豆散发出浓郁的焦糖香气，弥漫在清晨小镇街道的每一个角落。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">4</div>
+            <div class="code bg-unchanged">段落四，在算法复杂度优化过程中，选择合适的数据结构往往能起到事半功倍的效果。</div>
+            <div class="num bg-unchanged">4</div>
+            <div class="code bg-unchanged">段落四，在算法复杂度优化过程中，选择合适的数据结构往往能起到事半功倍的效果。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">5</div>
+            <div class="code bg-unchanged">段落五，古老的城堡静静地伫立在山巅，见证了数百年来的风云变幻与历史沧桑。</div>
+            <div class="num bg-unchanged">5</div>
+            <div class="code bg-unchanged">段落五，古老的城堡静静地伫立在山巅，见证了数百年来的风云变幻与历史沧桑。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">6</div>
+            <div class="code bg-unchanged">段落六，现代前端框架通过虚拟 DOM 技术极大地提高了重绘性能与用户交互的流畅度。</div>
+            <div class="num bg-unchanged">6</div>
+            <div class="code bg-unchanged">段落六，现代前端框架通过虚拟 DOM 技术极大地提高了重绘性能与用户交互的流畅度。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">7</div>
+            <div class="code bg-unchanged">段落七，金黄色的银杏叶在秋风中款款飘落，铺满了公园那条小径。</div>
+            <div class="num bg-unchanged">7</div>
+            <div class="code bg-unchanged">段落七，金黄色的银杏叶在秋风中款款飘落，铺满了公园那条小径。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">8</div>
+            <div class="code bg-unchanged">段落八，自动化测试脚本的引入能够有效减少人工复核的成本，提高版本迭代效率。</div>
+            <div class="num bg-unchanged">8</div>
+            <div class="code bg-unchanged">段落八，自动化测试脚本的引入能够有效减少人工复核的成本，提高版本迭代效率。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">9</div>
+            <div class="code bg-unchanged">段落九，热带雨林里栖息着数以万计的珍稀物种，构成了地球上最复杂的生态平衡。</div>
+            <div class="num bg-unchanged">9</div>
+            <div class="code bg-unchanged">段落九，热带雨林里栖息着数以万计的珍稀物种，构成了地球上最复杂的生态平衡。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">10</div>
+            <div class="code bg-unchanged">段落十，数据库索引虽然能够显著提升查询速度，但过多的索引也会降低写入操作的性能。</div>
+            <div class="num bg-unchanged">10</div>
+            <div class="code bg-unchanged">段落十，数据库索引虽然能够显著提升查询速度，但过多的索引也会降低写入操作的性能。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">11</div>
+            <div class="code bg-unchanged">段落十一，悠扬的钢琴声从远处的音乐厅飘散出来，抚平了深夜行人内心的焦躁与不安。</div>
+            <div class="num bg-unchanged">11</div>
+            <div class="code bg-unchanged">段落十一，悠扬的钢琴声从远处的音乐厅飘散出来，抚平了深夜行人内心的焦躁与不安。</div>
+        </div>
+        
+        <div class="diff-row">
+            <div class="num bg-unchanged">12</div>
+            <div class="code bg-unchanged">段落十二，跨平台开发技术使得开发者只需编写一套代码，就能同时发布到多个移动端系统中。</div>
+            <div class="num bg-unchanged">12</div>
+            <div class="code bg-unchanged">段落十二，跨平台开发技术使得开发者只需编写一套代码，就能同时发布到多个移动端系统中。</div>
+        </div>
+        
+        </div>
+    </div>
+</body>
+</html>
