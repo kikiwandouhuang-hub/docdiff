@@ -1,4 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
-out.html.DS_Store
+.pytest_cache/
+.DS_Store
+out.html

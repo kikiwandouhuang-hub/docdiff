@@ -1,0 +1,187 @@
+<mxfile host="Electron">
+  <diagram name="第 1 页" id="Vuv0TBKcnXbaBySOLsES">
+    <mxGraphModel dx="2529" dy="2459" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="docdiff 架构：三层解耦，ops 中间表示为关节" vertex="1">
+          <mxGeometry height="40" width="780" x="60" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="in_old" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="old.docx" vertex="1">
+          <mxGeometry height="42" width="150" x="245" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="in_new" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="new.docx" vertex="1">
+          <mxGeometry height="42" width="150" x="505" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4fb;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=14;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#31538f;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="①  解析层 · docdiff/parser.py" vertex="1">
+          <mxGeometry height="170" width="780" x="60" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="n1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9aa5b1;fontSize=11;fontColor=#5a6572;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="docx 本质是 zip 包&lt;br&gt;读取 word/document.xml" vertex="1">
+          <mxGeometry height="42" width="200" x="90" y="165" as="geometry" />
+        </mxCell>
+        <mxCell id="ep" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="extract_paragraphs(path)" vertex="1">
+          <mxGeometry height="42" width="240" x="330" y="165" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9aa5b1;fontSize=11;fontColor=#5a6572;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="同一段落会被切成多个 w:r&lt;br&gt;→ 拼接该 w:p 下所有 w:t" vertex="1">
+          <mxGeometry height="42" width="215" x="610" y="165" as="geometry" />
+        </mxCell>
+        <mxCell id="paras" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="段落文本列表 a、b（list[str]）" vertex="1">
+          <mxGeometry height="42" width="280" x="310" y="232" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef7ec;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=14;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#4a7c3f;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="&amp;nbsp; &amp;nbsp; ②  算法内核 · docdiff/core.py — diff_docx()：编排 + 坐标系转换" vertex="1">
+          <mxGeometry height="490" width="790" x="50" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="s0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="0 · 剥离公共头尾（head / tail）&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#7a8593;&quot;&gt;core.py&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="330" x="250" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="n0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9aa5b1;fontSize=11;fontColor=#5a6572;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="公共前缀 / 后缀必属某个最优 LCS&lt;br&gt;→ 剥离不损失最优性，只缩小 dp 表" vertex="1">
+          <mxGeometry height="48" width="215" x="610" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="mid" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e4;strokeColor=#82b366;dashed=1;fontSize=12;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="mid_a、mid_b（仅中间待比对区）" vertex="1">
+          <mxGeometry height="34" width="260" x="285" y="444" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="1 · diff_ops()　LCS 对齐&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#7a8593;&quot;&gt;align.py&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="330" x="250" y="494" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9aa5b1;fontSize=11;fontColor=#5a6572;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="dp 表 + 回溯&lt;br&gt;破解「索引雪崩」" vertex="1">
+          <mxGeometry height="48" width="215" x="610" y="494" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="2 · detect_moves()　移动检测&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#7a8593;&quot;&gt;align.py&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="330" x="250" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9aa5b1;fontSize=11;fontColor=#5a6572;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="文本全等的 删+增&lt;br&gt;按序贪心配对为 moved" vertex="1">
+          <mxGeometry height="48" width="215" x="610" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="3 · pair_modified()　相似度配对&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#7a8593;&quot;&gt;refine.py&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="330" x="250" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9aa5b1;fontSize=11;fontColor=#5a6572;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="difflib 相似度 ≥ 0.6&lt;br&gt;剩余 删+增 → modified" vertex="1">
+          <mxGeometry height="48" width="215" x="610" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="midops" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e4;strokeColor=#82b366;dashed=1;fontSize=12;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="mid_ops（下标仍相对于 mid_a / mid_b）" vertex="1">
+          <mxGeometry height="34" width="300" x="265" y="694" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=12;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="4 · 坐标系转换：old_idx / new_idx += head，补回首尾 unchanged&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#7a8593;&quot;&gt;core.py — 下标算错即渲染出重影段落&lt;/font&gt;" vertex="1">
+          <mxGeometry height="45" width="425" x="95" y="755" as="geometry" />
+        </mxCell>
+        <mxCell id="inl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;dashed=1;fontSize=12;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="inline_diff()　段内字符级细化&lt;br&gt;&lt;font style=&quot;font-size:10px;color:#7a8593;&quot;&gt;refine.py · difflib opcodes（v2 换自研词级 LCS）&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="168" x="640" y="755" as="geometry" />
+        </mxCell>
+        <mxCell id="ops" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=3;fontSize=12;verticalAlign=middle;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="&lt;b&gt;中间表示 · ops 变更操作列表&lt;/b&gt;&lt;br&gt;&lt;br&gt;[ { op: unchanged | inserted | deleted | moved | modified,old_idx, new_idx, inline: [ … ] } ]&lt;br&gt;&lt;br&gt;&lt;i&gt;三层解耦的关节：算法层不认识 docx，渲染层不认识算法索引级表示——只存下标不带原文，diff 结果保持轻量&lt;/i&gt;" vertex="1">
+          <mxGeometry height="130" width="600" x="170" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf3e7;strokeColor=#d79b00;verticalAlign=top;align=left;spacingLeft=14;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#a06800;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="③  渲染层 · docdiff/cli.py 分发" vertex="1">
+          <mxGeometry height="190" width="780" x="60" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="cli" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;fontStyle=1;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="cli.py · argparse 入口" vertex="1">
+          <mxGeometry height="42" width="240" x="330" y="1076" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="render_term.py&lt;br&gt;&lt;font style=&quot;font-size:11px;&quot;&gt;ANSI 转义码，零依赖&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="215" x="95" y="1152" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="render_html.py&lt;br&gt;&lt;font style=&quot;font-size:11px;&quot;&gt;自包含单文件，CSS 内联&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="215" x="343" y="1152" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="--json&lt;br&gt;&lt;font style=&quot;font-size:11px;&quot;&gt;json.dumps 直出 stdout&lt;/font&gt;" vertex="1">
+          <mxGeometry height="48" width="215" x="591" y="1152" as="geometry" />
+        </mxCell>
+        <mxCell id="o1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="终端彩色对比" vertex="1">
+          <mxGeometry height="45" width="215" x="95" y="1265" as="geometry" />
+        </mxCell>
+        <mxCell id="o2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="HTML 左右对照页" vertex="1">
+          <mxGeometry height="45" width="215" x="343" y="1265" as="geometry" />
+        </mxCell>
+        <mxCell id="o3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;sketch=1;curveFitting=1;jiggle=2;shadow=1;" value="JSON + 退出码 0 / 1 / 2" vertex="1">
+          <mxGeometry height="45" width="215" x="591" y="1265" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="in_old" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="ep">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="in_new" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="ep">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="ep" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="paras">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="paras" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;strokeWidth=2;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="s0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="s0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="mid">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="mid" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="s1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="s1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="s2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="s2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="midops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="midops" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="s4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="Ga9qwZ5E70yOCQSmUStE-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;startArrow=block;endArrow=block;strokeColor=#82b366;fontSize=10;fontColor=#4a7c3f;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="inl" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="s4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;strokeWidth=2;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="ops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="ops" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;strokeWidth=2;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="cli">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="cli" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="r1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="cli" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="r2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="cli" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="r3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="r1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="o1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="r2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="o2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="r3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#666666;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="o3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Ga9qwZ5E70yOCQSmUStE-9" edge="1" parent="1" source="s4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;startArrow=block;endArrow=block;strokeColor=#82b366;fontSize=10;fontColor=#4a7c3f;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;sketch=1;curveFitting=1;jiggle=2;shadow=1;" target="Ga9qwZ5E70yOCQSmUStE-8" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="530" y="778" as="sourcePoint" />
+            <mxPoint x="672" y="776" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Ga9qwZ5E70yOCQSmUStE-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=60;glass=0;shadow=1;sketch=1;curveFitting=1;jiggle=2;arcSize=39;fontFamily=Helvetica;fontSize=11;fontStyle=0;align=center;verticalAlign=middle;" value="仅op == modified挂载incline字段" vertex="1">
+          <mxGeometry height="34" width="89" x="535.5" y="761" as="geometry" />
+        </mxCell>
+        <mxCell id="Ga9qwZ5E70yOCQSmUStE-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;opacity=60;glass=0;shadow=1;sketch=1;curveFitting=1;jiggle=2;arcSize=39;" value="传入 a、b 供渲染按下标取文本" vertex="1">
+          <mxGeometry height="105.5" width="70" x="-40" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="Ga9qwZ5E70yOCQSmUStE-16" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="paras" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint y="253" />
+            </Array>
+            <mxPoint y="560" as="sourcePoint" />
+            <mxPoint x="-130" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Ga9qwZ5E70yOCQSmUStE-17" edge="1" parent="1" source="cli" style="endArrow=none;dashed=1;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint y="1097" />
+            </Array>
+            <mxPoint x="370" y="600" as="sourcePoint" />
+            <mxPoint y="670" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
