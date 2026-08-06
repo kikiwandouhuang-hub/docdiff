@@ -1,0 +1,76 @@
+[
+  {
+    "new_idx": 0,
+    "old_idx": 0,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 1,
+    "old_idx": 1,
+    "op": "unchanged"
+  },
+  {
+    "inline": [
+      {
+        "tag": "equal",
+        "text": "段落三，新"
+      },
+      {
+        "tag": "delete",
+        "text": "鲜烘焙"
+      },
+      {
+        "tag": "equal",
+        "text": "的咖啡豆散发出浓郁的焦糖香气，弥漫在清晨小镇街道的每一个角落。"
+      }
+    ],
+    "new_idx": 2,
+    "old_idx": 2,
+    "op": "modified"
+  },
+  {
+    "new_idx": 3,
+    "old_idx": 3,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 4,
+    "old_idx": 4,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 5,
+    "old_idx": 5,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 6,
+    "old_idx": 6,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 7,
+    "old_idx": 7,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 8,
+    "old_idx": 8,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 9,
+    "old_idx": 9,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 10,
+    "old_idx": 10,
+    "op": "unchanged"
+  },
+  {
+    "new_idx": 11,
+    "old_idx": 11,
+    "op": "unchanged"
+  }
+]
