@@ -1,66 +1,91 @@
-from difflib import SequenceMatcher
+import difflib
 
-SIM_THRESHOLD = 0.6
+SIM_THRESHOLD = 0.7
+POSITION_WINDOW = 2
+
+def _anchors(ops: list[dict]) -> list[tuple[int, int]]:
+    res = []
+    for op in ops:
+        if op["op"] == "unchanged":
+            res.append((op["old_idx"], op["new_idx"]))
+    res.sort(key=lambda x: x[0])
+    return res
+
+def _expected_new_idx(old_idx: int, anchors: list[tuple[int, int]]) -> int:
+    best_a_old = -1
+    best_a_new = -1
+    for a_old, a_new in anchors:
+        if a_old < old_idx:
+            best_a_old = a_old
+            best_a_new = a_new
+        else:
+            break
+            
+    if best_a_old == -1:
+        return old_idx
+        
+    return best_a_new + (old_idx - best_a_old)
 
 def pair_modified(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
-    deleted_ops = []
-    inserted_ops = []
-
-    for op in ops:
-        if op["op"] in ("deleted", "delete"):
-            deleted_ops.append(op)
-        elif op["op"] in ("inserted", "insert"):
-            inserted_ops.append(op)
-
-    matched_old_ids = set()
-    matched_new_ids = set()
-    matched_pairs = {}
-
-    for ins_op in inserted_ops:
-        new_idx = ins_op["new_idx"]
-        new_text = b[new_idx]
-        best_sim = 0.0
-        best_del_op = None
-
-        for del_op in deleted_ops:
-            old_idx = del_op["old_idx"]
-            if id(del_op) in matched_old_ids:
+    anchors = _anchors(ops)
+    
+    deleted = [op for op in ops if op["op"] == "deleted"]
+    inserted = [op for op in ops if op["op"] == "inserted"]
+    
+    candidates = []
+    for d_op in deleted:
+        old_idx = d_op["old_idx"]
+        for i_op in inserted:
+            new_idx = i_op["new_idx"]
+            
+            dist = abs(new_idx - _expected_new_idx(old_idx, anchors))
+            if dist > POSITION_WINDOW:
                 continue
-
-            old_text = a[old_idx]
-            sim = SequenceMatcher(None, old_text, new_text).ratio()
-
-            if sim > best_sim:
-                best_sim = sim
-                best_del_op = del_op
-
-        if best_sim >= SIM_THRESHOLD and best_del_op is not None:
-            matched_old_ids.add(id(best_del_op))
-            matched_new_ids.add(id(ins_op))
-            matched_pairs[id(best_del_op)] = {
-                "op": "modified",
-                "old_idx": best_del_op["old_idx"],
-                "new_idx": new_idx
-            }
-
-    new_ops = []
-    for op in ops:
-        op_id = id(op)
-        if op_id in matched_pairs:
-            new_ops.append(matched_pairs[op_id])
-        elif op_id in matched_new_ids:
+                
+            sim = difflib.SequenceMatcher(None, a[old_idx], b[new_idx]).ratio()
+            if sim >= SIM_THRESHOLD:
+                candidates.append((sim, d_op, i_op))
+                
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    
+    used_old = set()
+    used_new = set()
+    mod_ops = []
+    
+    for sim, d_op, i_op in candidates:
+        old_idx = d_op["old_idx"]
+        new_idx = i_op["new_idx"]
+        
+        if old_idx in used_old or new_idx in used_new:
             continue
-        else:
-            new_ops.append(op)
-
-    return new_ops
-
+            
+        used_old.add(old_idx)
+        used_new.add(new_idx)
+        
+        mod_ops.append({
+            "op": "modified",
+            "old_idx": old_idx,
+            "new_idx": new_idx
+        })
+        
+    out_ops = []
+    for op in ops:
+        if op["op"] == "deleted" and op["old_idx"] in used_old:
+            continue
+        if op["op"] == "inserted" and op["new_idx"] in used_new:
+            continue
+        out_ops.append(op)
+        
+    out_ops.extend(mod_ops)
+    out_ops.sort(key=lambda x: (x.get("old_idx", float("inf")), x.get("new_idx", float("inf"))))
+    
+    return out_ops
 
 def inline_diff(old_text: str, new_text: str) -> list[dict]:
-    matcher = SequenceMatcher(None, old_text, new_text)
+    matcher = difflib.SequenceMatcher(None, old_text, new_text)
     opcodes = matcher.get_opcodes()
     inline_ops = []
-
+    
     for tag, i1, i2, j1, j2 in opcodes:
         if tag == "equal":
             inline_ops.append({"tag": "equal", "text": old_text[i1:i2]})
@@ -71,5 +96,5 @@ def inline_diff(old_text: str, new_text: str) -> list[dict]:
         elif tag == "replace":
             inline_ops.append({"tag": "delete", "text": old_text[i1:i2]})
             inline_ops.append({"tag": "insert", "text": new_text[j1:j2]})
-
+            
     return inline_ops

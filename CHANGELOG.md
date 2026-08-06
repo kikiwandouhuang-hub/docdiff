@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased] — v2 开发中
+### Changed
+- 基于扫参实验，将段落相似度配对阈值 (`SIM_THRESHOLD`) 从 0.6 调整为 0.7，以优先控制误配代价。
 
 ## [0.1.0] — 2026-08-06
 ### Added
