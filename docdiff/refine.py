@@ -1,6 +1,6 @@
 import difflib
 
-SIM_THRESHOLD = 0.5
+SIM_THRESHOLD = 0.7
 POSITION_WINDOW = 2
 
 def _anchors(ops: list[dict]) -> list[tuple[int, int]]:
