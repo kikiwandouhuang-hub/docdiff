@@ -38,3 +38,25 @@ class Block:
 
     def __hash__(self) -> int:
         return hash((self.kind, self.key()))
+
+
+def block_to_dict(b: Block) -> dict:
+    """JSON 序列化(--embed-text 把 blocks 完整写进信封)。"""
+    return {
+        "kind": b.kind,
+        "text": b.text,
+        "rows": b.rows,
+        "style": b.style,
+        "fmt": b.fmt,
+    }
+
+
+def block_from_dict(d: dict) -> Block:
+    """从 JSON 还原 Block(--from-json 反向渲染用)。"""
+    return Block(
+        kind=d["kind"],
+        text=d.get("text", ""),
+        rows=d.get("rows", []),
+        style=d.get("style"),
+        fmt=d.get("fmt"),
+    )
