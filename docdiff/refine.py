@@ -1,9 +1,14 @@
 import difflib
 from .tokenize import tokenize
 from .seqdiff import diff_ops as seq_diff_ops
+from .model import Block, CELL_SEP
 
 SIM_THRESHOLD = 0.7
 POSITION_WINDOW = 2
+# 表格身份配对的相似度阈值,由 experiments/scan_table_threshold.py 扫参确定:
+# 正样本(同表四类修订)最小 0.750,负样本(无关表/行序颠倒/大部分行重写)最大 0.333,
+# 0.5 落在可分离区间中央,给"半张表被改写仍算同表"留了余地。
+TABLE_SIM_THRESHOLD = 0.5
 
 # 词级 LCS 的规模上限(len(ta) * len(tb))。
 # 超过则先走句级两级细化;句级也切不开(全文一句)时退回 difflib 兜底。
@@ -33,7 +38,64 @@ def _expected_new_idx(old_idx: int, anchors: list[tuple[int, int]]) -> int:
 
     return best_a_new + (old_idx - best_a_old)
 
-def pair_modified(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
+def _lcs_coverage(seq_a: list[str], seq_b: list[str]) -> float:
+    """2*LCS/(m+n):行序敏感的相似度。
+
+    选它而不是 Jaccard 的原因:Jaccard 对行序不敏感,两张行序完全颠倒的表
+    会被判成相同;LCS 覆盖率把行序计入,而且顺手复用了 seqdiff。
+    """
+    if not seq_a and not seq_b:
+        return 1.0
+    if not seq_a or not seq_b:
+        return 0.0
+    ops = seq_diff_ops(seq_a, seq_b)
+    lcs_len = sum(1 for op in ops if op["op"] == "unchanged")
+    return 2.0 * lcs_len / (len(seq_a) + len(seq_b))
+
+def _columns(rows: list[list[str]]) -> list[list[str]]:
+    """行转列;参差行补空串,防御性处理。"""
+    n = max((len(r) for r in rows), default=0)
+    return [[r[i] if i < len(r) else "" for r in rows] for i in range(n)]
+
+def table_similarity(ta: Block, tb: Block) -> float:
+    """两张表的相似度:行级 LCS 覆盖率(行序敏感)。
+
+    列数不同(插列/删列)时行键整体错位,行级覆盖率必然为 0,
+    此时转置到列视角再算一次 —— 插列是表结构变更的常见形态,
+    列级 LCS 依然保持列序敏感,没有退回 Jaccard。
+    """
+    row_cov = _lcs_coverage(
+        [CELL_SEP.join(r) for r in ta.rows],
+        [CELL_SEP.join(r) for r in tb.rows],
+    )
+    if row_cov >= TABLE_SIM_THRESHOLD:
+        return row_cov
+    n_a = max((len(r) for r in ta.rows), default=0)
+    n_b = max((len(r) for r in tb.rows), default=0)
+    if n_a != n_b:
+        return _lcs_coverage(
+            [CELL_SEP.join(c) for c in _columns(ta.rows)],
+            [CELL_SEP.join(c) for c in _columns(tb.rows)],
+        )
+    return row_cov
+
+def _pair_sim(xa, xb):
+    """配对相似度:段落按文本比,表格按行级 LCS 覆盖率比;跨 kind 永不配对。"""
+    if isinstance(xa, Block) and isinstance(xb, Block):
+        if xa.kind == xb.kind == "table":
+            return table_similarity(xa, xb)
+        if xa.kind != xb.kind:
+            return None
+    key_a = xa if isinstance(xa, str) else xa.key()
+    key_b = xb if isinstance(xb, str) else xb.key()
+    return difflib.SequenceMatcher(None, key_a, key_b).ratio()
+
+def pair_modified(ops: list[dict], a: list, b: list) -> list[dict]:
+    """把 deleted+inserted 对按相似度合并为 modified。
+
+    a / b 兼容两种载荷:v1 的 list[str](段落键)与 v2 的 list[Block];
+    表格对的相似度用 table_similarity,阈值用 TABLE_SIM_THRESHOLD。
+    """
     anchors = _anchors(ops)
 
     deleted = [op for op in ops if op["op"] == "deleted"]
@@ -49,8 +111,15 @@ def pair_modified(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
             if dist > POSITION_WINDOW:
                 continue
 
-            sim = difflib.SequenceMatcher(None, a[old_idx], b[new_idx]).ratio()
-            if sim >= SIM_THRESHOLD:
+            sim = _pair_sim(a[old_idx], b[new_idx])
+            if sim is None:
+                continue
+            is_table = (
+                isinstance(a[old_idx], Block)
+                and a[old_idx].kind == "table"
+            )
+            threshold = TABLE_SIM_THRESHOLD if is_table else SIM_THRESHOLD
+            if sim >= threshold:
                 candidates.append((sim, d_op, i_op))
 
     candidates.sort(key=lambda x: x[0], reverse=True)

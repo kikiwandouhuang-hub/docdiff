@@ -22,8 +22,12 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
     # 1. 算法内核处理
     mid_ops = diff_ops(mid_a, mid_b)
     mid_ops = detect_moves(mid_ops, mid_a, mid_b)
-    # 2. 相似段落配对
-    mid_ops = pair_modified(mid_ops, mid_a, mid_b)
+    # 2. 相似配对:段落按文本、表格按行级 LCS 覆盖率(V2-C 身份配对)
+    #    pair_modified 需要 Block 载荷才能拿到 rows,传块切片;
+    #    ops 里的 old_idx / new_idx 仍指向 a / b 的下标。
+    mid_blocks_a = a[head : len(a) - tail] if tail > 0 else a[head:]
+    mid_blocks_b = b[head : len(b) - tail] if tail > 0 else b[head:]
+    mid_ops = pair_modified(mid_ops, mid_blocks_a, mid_blocks_b)
 
     ops = []
 
@@ -40,7 +44,8 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
             new_op["new_idx"] += head
 
         # 为合并成功的 modified 挂载段内差异
-        if new_op["op"] == "modified":
+        # (表格的 modified 在 V2-C 3.4 挂载行级 rows,这里先跳过)
+        if new_op["op"] == "modified" and a[new_op["old_idx"]].kind == "paragraph":
             old_text = a[new_op["old_idx"]].text
             new_text = b[new_op["new_idx"]].text
             new_op["inline"] = inline_diff(old_text, new_text)
