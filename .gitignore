@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 out.html
 samples/big_*.docx
+build/
+dist/
+*.egg-info/
