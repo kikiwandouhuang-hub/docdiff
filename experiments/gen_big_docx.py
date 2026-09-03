@@ -39,12 +39,35 @@ def _para_text(i: int, m: int, mutate: bool) -> str:
     return text
 
 
-def build(out_path: str, n: int, m: int, mutate: int) -> None:
+def _para(text: str) -> str:
+    return f'<w:p><w:r><w:t xml:space="preserve">{text}</w:t></w:r></w:p>'
+
+
+def _cell(text: str) -> str:
+    return f"<w:tc>{_para(text)}</w:tc>"
+
+
+def _table(k: int, mutate: bool) -> str:
+    """4 行 3 列的小表,表头带编号当指纹;mutate 时改一个数据格。"""
+    rows = [
+        [f"表{k}姓名", f"表{k}部门", f"表{k}状态"],
+        ["张三", "技术部", "在职"],
+        ["李四", "运营部" if mutate else "市场部", "在职"],
+        ["王五", "人事部", "在职"],
+    ]
+    trs = "".join(f"<w:tr>{''.join(_cell(c) for c in row)}</w:tr>" for row in rows)
+    grid = "<w:tblGrid>" + "<w:gridCol/>" * 3 + "</w:tblGrid>"
+    return f"<w:tbl><w:tblPr/>{grid}{trs}</w:tbl>"
+
+
+def build(out_path: str, n: int, m: int, mutate: int, tables: int) -> None:
     mutate_idxs = set(range(0, n, max(1, n // mutate))) if mutate else set()
     body = "".join(
-        f'<w:p><w:r><w:t xml:space="preserve">{_para_text(i, m, i in mutate_idxs)}</w:t></w:r></w:p>'
+        _para(_para_text(i, m, i in mutate_idxs))
         for i in range(n)
     )
+    # 表格接在段落流后面;改第 2 张表的一个格,模拟"表头指纹不变的行内修改"
+    body += "".join(_table(k, mutate and k == 1) for k in range(tables))
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", CONTENT_TYPES)
         z.writestr("_rels/.rels", RELS)
@@ -57,6 +80,7 @@ if __name__ == "__main__":
     p.add_argument("m", type=int, help="每段字数")
     p.add_argument("out", help="输出路径")
     p.add_argument("--mutate", type=int, default=0, help="改动 K 段(取整分布)")
+    p.add_argument("--tables", type=int, default=0, help="段落后追加 N 张 4x3 表格")
     args = p.parse_args()
-    build(args.out, args.n, args.m, args.mutate)
-    print(f"ok: {args.out} ({args.n} 段 × {args.m} 字, mutate={args.mutate})")
+    build(args.out, args.n, args.m, args.mutate, args.tables)
+    print(f"ok: {args.out} ({args.n} 段 × {args.m} 字, mutate={args.mutate}, tables={args.tables})")
