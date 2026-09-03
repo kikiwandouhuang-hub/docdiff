@@ -10,7 +10,12 @@ PAIRS = [
     ("old.docx", "old.docx"),
     ("old.docx", "new1.docx"),
     ("old.docx", "new2.docx"),
-    ("old.docx", "new3.docx")
+    ("old.docx", "new3.docx"),
+    # V2-C 表格样本:快照把嵌套 ops 结构钉死
+    ("tbl_old.docx", "tbl_new1.docx"),
+    ("tbl_old.docx", "tbl_new2.docx"),
+    ("tbl_old.docx", "tbl_new3.docx"),
+    ("tbl_old.docx", "tbl_new4.docx"),
 ]
 
 def _check(old_name, new_name):

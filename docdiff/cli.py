@@ -32,9 +32,7 @@ def main():
         a = extract_blocks(args.old)
         b = extract_blocks(args.new)
         ops = diff_docx(args.old, args.new)
-        # 渲染层目前只吃段落文本(V2-C 表格渲染时升级为 Block)
-        texts_a = [x.text for x in a]
-        texts_b = [x.text for x in b]
+        # 渲染层消费 Block 流(V2-C:table_modified 需要 rows 载荷)
 
         # 判断是否有真正的变更（存在不是 unchanged 的操作）
         has_diff = any(op["op"] != "unchanged" for op in ops)
@@ -44,10 +42,10 @@ def main():
             # 纯数据模式，不再输出其他人话提示
             print(json.dumps(ops, ensure_ascii=False, indent=2))
         elif args.html:
-            render_html(ops, texts_a, texts_b, args.html)
+            render_html(ops, a, b, args.html)
             print(f"✅ HTML 对比报告已成功生成：{args.html}")
         else:
-            render_term(ops, texts_a, texts_b)
+            render_term(ops, a, b)
             
         # 根据是否有变更返回退出码（0 无差异，1 有差异）
         sys.exit(1 if has_diff else 0)
