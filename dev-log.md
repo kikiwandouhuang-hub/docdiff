@@ -137,3 +137,20 @@ formatted 并挂 changes;modified 直接挂 changes(文本+格式同时变不产
 - bench 的小坑:docdiff 有差异时退出码是 1,这是正常语义,基准脚本
   必须把 1 当成功(assert returncode in (0,1));/usr/bin/time -l 的
   real 行以 sys 结尾,endswith("real") 解析会永远落空。
+
+---
+
+**6.3 发布 v0.2.0(架构图重导 / README 改版 / 合并打标):**
+
+- **6.3a 干净环境验证**:venv 里 `pip install .` + `docdiff --help` 通过;
+  wheel 只含 docdiff 包本身,samples/docs/experiments 全被排除,LICENSE 随包分发。
+- **6.3b 架构图重导**:补上 V2 后才有的三个模块(seqdiff / tablediff / model)
+  与两条后置管线(diff_table、fmt_changes),ops 盒改写成三层嵌套结构。
+  意外收获:draw.io.app 自带 CLI(`--export -f png --scale 2`),不必手搓 PIL 渲染。
+- **6.3c README 改版**:按手册 6.3 清单逐条落地——顶部 pip install(用
+  git+https,因 PyPI 按约定跳过)、版本演进、二维雪崩配图、op 三层总表、
+  6.2 性能表、阈值扫参数据(0.7+位置窗口,误配 0,18% 移动型修改降级)、
+  已知边界五条(显眼放前)、设计决策补 V2 五条、Roadmap 划旧标新(V3 五条按 P0/P1/P2)。
+- **6.3d 合并发布**:v2(23 commits)fast-forward 进 main,tag v0.2.0,
+  推送 main / v2 / tag。V2-A 的 PR#1 由我按手册开,因 v2 直并 main,
+  页面显示 already merged 属预期。
