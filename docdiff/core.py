@@ -1,6 +1,6 @@
 from .parser import extract_blocks
 from .align import diff_ops, detect_moves
-from .refine import pair_modified, inline_diff
+from .refine import pair_modified, inline_diff, fmt_changes
 from .seqdiff import trim_common
 from .tablediff import diff_table
 
@@ -62,9 +62,8 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
             "new_idx": b_tail_start + i
         })
 
-    # V2-C 表格内部 diff:对每个配对上的表格(unchanged 或 modified)跑行级 diff。
-    # 必须放在 ops 全部组装完之后:表格往往落在公共头/尾(表头指纹相同),
-    # 中段循环根本看不见它们。
+    # V2-C 表格内部 diff + V2-E 格式指纹:都必须放在 ops 全部组装完之后——
+    # 落在公共头/尾的表格/段落,中段循环根本看不见它们。
     for op in ops:
         if op["op"] in ("unchanged", "modified"):
             old_block = a[op["old_idx"]]
@@ -73,6 +72,14 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
                 if any(r["op"] != "row_unchanged" for r in rows):
                     op["op"] = "table_modified"
                     op["rows"] = rows
+            else:
+                # 文本没变但格式变了 -> unchanged 升级成 formatted;
+                # 文本也变了 -> modified 附带 changes 字段。
+                changes = fmt_changes(old_block.fmt, b[op["new_idx"]].fmt)
+                if changes:
+                    if op["op"] == "unchanged":
+                        op["op"] = "formatted"
+                    op["changes"] = changes
 
     return ops
 

@@ -74,3 +74,21 @@ equal+delete 按序拼接 == 旧文本,equal+insert == 新文本。写成测试�
 - SimSong(截图字体)缺 ⇅/⚠/↷ 字形,表格行移动标记改用 ↑↓,警告用纯文本。
 - 行级 warning(列数漂移)由渲染层去重显示;合并单元格看 Block.fmt 的
   unsupported 字段,表格上方一行警告。
+**4.2 V2-E 格式变更检测(formatted op + --check-format):**
+产品决策:formatted **默认不计入差异判定**(exit 0 + 提示),--check-format 才纳入(exit 1)。
+理由:CI 里最常见的诉求是"内容变了吗",格式变更(尤其样式继承导致的)噪声大,
+误报代价高;需要严格模式时显式 opt-in。退出码是 CI 的行为契约,不能拍脑袋。
+
+实现的坑:
+- **w:sz 单位是半磅**,val=24 是 12pt,不除 2 会和字号直觉对不上。
+- **多 run 段落的指纹用多数规则 + mixed 标记**。真实来源:文本改过的段落 Word 会
+  拆成多个 run(如 new1 段落三 3 个 run),只加粗部分 run 时指纹如实报 mixed、
+  多数 False——这是正确的,错的是样本生成器(整段加粗必须替换段落内所有 rPr,
+  段落的 pPr 里也有 rPr 不能动)。
+- **并列取先出现**:max(..., key=count) 靠 Python 稳定性保证,别用 set() 去重(哈希序)。
+- <w:b w:val="0"/> 是显式关;<w:u val="none"/> 与缺省同为"无下划线"。
+- 直接格式化只读 run 的 rPr,**样式继承(styles.xml)是已知边界**:两份文档
+  默认样式不同会被漏报,记入 README 边界清单。
+
+指纹对比挂在 core.py 后置钩子里(与表格钩子同位置):unchanged 且指纹不同 →
+formatted 并挂 changes;modified 直接挂 changes(文本+格式同时变不产生新 op 类型)。

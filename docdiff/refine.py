@@ -272,3 +272,14 @@ def inline_diff(old_text: str, new_text: str) -> list[dict]:
     if len(ta) * len(tb) <= MAX_TOKEN_PRODUCT:
         return _tokens_diff(ta, tb)
     return _sentence_diff(old_text, new_text)
+
+
+def fmt_changes(fmt_a: dict | None, fmt_b: dict | None) -> list[dict]:
+    """格式指纹对比,输出 [{"attr","old","new"},...]。None 视为无指纹不比较。"""
+    if not fmt_a or not fmt_b:
+        return []
+    out = []
+    for attr in ("bold", "italic", "underline", "size", "color"):
+        if fmt_a.get(attr) != fmt_b.get(attr):
+            out.append({"attr": attr, "old": fmt_a.get(attr), "new": fmt_b.get(attr)})
+    return out

@@ -22,8 +22,55 @@ def _paragraph_text(p) -> str:
     return "".join(texts)
 
 
+def _run_fmt(rpr) -> dict:
+    """单个 run 的格式指纹,只取五项(bold/italic/underline/size/color)。
+    V2 只做直接格式:样式继承(w:pStyle -> styles.xml)不解析,这是已知边界。"""
+    fmt = {"bold": False, "italic": False, "underline": None, "size": None, "color": None}
+    if rpr is None:
+        return fmt
+    for child in rpr:
+        tag = child.tag
+        if tag == W_NS + "b":
+            # <w:b/> 即开;显式 w:val="0"/"false" 是关(覆盖样式继承时会出现)
+            val = child.get(W_NS + "val")
+            fmt["bold"] = val not in ("0", "false", "off")
+        elif tag == W_NS + "i":
+            val = child.get(W_NS + "val")
+            fmt["italic"] = val not in ("0", "false", "off")
+        elif tag == W_NS + "u":
+            # val 缺省为 single;<w:u w:val="none"/> 是"无下划线"
+            val = child.get(W_NS + "val", "single")
+            fmt["underline"] = None if val in ("none", "0") else val
+        elif tag == W_NS + "sz":
+            val = child.get(W_NS + "val")
+            # w:sz 单位是半磅:val=24 才是 12pt,必须除 2
+            fmt["size"] = int(val) / 2 if val else None
+        elif tag == W_NS + "color":
+            fmt["color"] = child.get(W_NS + "val")
+    return fmt
+
+
+def _fmt_fingerprint(p) -> dict | None:
+    """段落的格式指纹:取多数 run 的值;run 间不一致时记 mixed=True。
+    没有 run 的段落(空段)返回 None,不参与格式对比。"""
+    run_fmts = [_run_fmt(r.find(W_NS + "rPr")) for r in p.findall(W_NS + "r")]
+    if not run_fmts:
+        return None
+    out = {}
+    for attr in ("bold", "italic", "underline", "size", "color"):
+        values = [f[attr] for f in run_fmts]
+        if all(v == values[0] for v in values):
+            out[attr] = values[0]
+        else:
+            # 多数值;并列时取先出现的 run 的值(dict.fromkeys 保序去重)
+            out[attr] = max(dict.fromkeys(values), key=values.count)
+            out["mixed"] = True
+    out.setdefault("mixed", False)
+    return out
+
+
 def _parse_paragraph(p) -> Block:
-    return Block(kind="paragraph", text=_paragraph_text(p))
+    return Block(kind="paragraph", text=_paragraph_text(p), fmt=_fmt_fingerprint(p))
 
 
 def _cell_text(tc) -> str:

@@ -246,6 +246,14 @@ def render(ops: list[dict], a, b) -> None:
             inline_str = "".join(inline_chunks)
             print(f"{YELLOW}~ [{old_idx + 1}→{new_idx + 1}] {inline_str}{RESET}")
 
+        elif op_type == "formatted":
+            old_idx = op["old_idx"]
+            new_idx = op["new_idx"]
+            desc = ", ".join(
+                f"{c['attr']}={c['old']}→{c['new']}" for c in op.get("changes", [])
+            )
+            print(f"{YELLOW}# [{old_idx + 1}→{new_idx + 1}] 格式: {desc}{RESET}")
+
         elif op_type == "table_modified":
             old_idx = op["old_idx"]
             new_idx = op["new_idx"]

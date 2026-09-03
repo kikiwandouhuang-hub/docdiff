@@ -17,6 +17,7 @@ def _stats(ops: list[dict]) -> dict:
         "modified": sum(1 for op in ops if op["op"] == "modified"),
         "moved": sum(1 for op in ops if op["op"] == "moved"),
         "table_modified": sum(1 for op in ops if op["op"] == "table_modified"),
+        "formatted": sum(1 for op in ops if op["op"] == "formatted"),
     }
     stats["total"] = sum(stats.values())
     return stats
@@ -69,6 +70,11 @@ def main():
         metavar="FILE",
         help="从 --json --embed-text 生成的 JSON 反向渲染(--html 或终端)"
     )
+    parser.add_argument(
+        "--check-format",
+        action="store_true",
+        help="把格式变更(formatted)纳入差异判定,退出码语义与 CI 对齐"
+    )
 
     args = parser.parse_args()
 
@@ -105,8 +111,13 @@ def main():
             b = extract_blocks(args.new)
             ops = diff_docx(args.old, args.new)
 
-        # 判断是否有真正的变更（存在不是 unchanged 的操作）
-        has_diff = any(op["op"] != "unchanged" for op in ops)
+        # 退出码契约:diff 的粒度是产品决策。CI 里最常见的诉求是"内容变了吗",
+        # 所以 formatted 默认不计入差异判定;--check-format 把它纳入(opt-in)。
+        formatted_cnt = sum(1 for op in ops if op["op"] == "formatted")
+        if args.check_format:
+            has_diff = any(op["op"] != "unchanged" for op in ops)
+        else:
+            has_diff = any(op["op"] not in ("unchanged", "formatted") for op in ops)
 
         # 路由输出模式
         if args.json and not args.from_json:
@@ -117,6 +128,8 @@ def main():
             print(f"✅ HTML 对比报告已成功生成：{args.html}")
         else:
             render_term(ops, a, b)
+            if not has_diff and formatted_cnt:
+                print(f"内容一致,存在 {formatted_cnt} 处格式差异(用 --check-format 纳入判定)")
 
         # 根据是否有变更返回退出码（0 无差异，1 有差异）
         sys.exit(1 if has_diff else 0)

@@ -107,12 +107,17 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
     modified_cnt = sum(1 for op in ops if op["op"] == "modified")
     moved_cnt = sum(1 for op in ops if op["op"] == "moved")
     table_cnt = sum(1 for op in ops if op["op"] == "table_modified")
-    total_changes = inserted_cnt + deleted_cnt + modified_cnt + moved_cnt + table_cnt
+    formatted_cnt = sum(1 for op in ops if op["op"] == "formatted")
+    total_changes = (
+        inserted_cnt + deleted_cnt + modified_cnt + moved_cnt + table_cnt + formatted_cnt
+    )
     p, q, r = _count_table_stats(ops)
     stats_text = (
         f"共 {total_changes} 处变更"
         f"({inserted_cnt} 增 {deleted_cnt} 删 {modified_cnt} 改 {moved_cnt} 移"
     )
+    if formatted_cnt:
+        stats_text += f";格式:{formatted_cnt} 处"
     if table_cnt:
         stats_text += f";表格:{p} 行增 {q} 行删 {r} 格改"
     stats_text += ")"
@@ -187,6 +192,15 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
                 left_warn += f'<div class="table-warn">⚠ {html.escape(row_warn)}</div>'
             left_html = left_warn + _table_html(op, "old", left_block, right_block)
             right_html = right_warn + _table_html(op, "new", left_block, right_block)
+            left_bg = right_bg = "bg-modified"
+
+        elif op_type == "formatted":
+            old_num = str(op["old_idx"] + 1)
+            new_num = str(op["new_idx"] + 1)
+            desc = "、".join(f"{c['attr']}: {c['old']} → {c['new']}" for c in op.get("changes", []))
+            badge = f'<div class="tag tag-format">格式变更: {desc}</div>'
+            left_html = badge + html.escape(a[op["old_idx"]].text)
+            right_html = badge + html.escape(b[op["new_idx"]].text)
             left_bg = right_bg = "bg-modified"
 
         # 拼装优雅的栅格结构
@@ -264,6 +278,7 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
         .pill-del {{ background: #fee2e2; color: #991b1b; }}
         .pill-mod {{ background: #fef3c7; color: #92400e; }}
         .pill-mov {{ background: #dbeafe; color: #1e40af; }}
+        .pill-fmt {{ background: #ede9fe; color: #5b21b6; }}
 
         .diff-grid {{
             display: flex;
@@ -324,6 +339,7 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
             margin-right: 8px;
         }}
         .tag-moved {{ background: #bfdbfe; color: #1e3a8a; border: 1px solid #93c5fd; }}
+        .tag-format {{ background: #ddd6fe; color: #4c1d95; border: 1px solid #c4b5fd; }}
 
         /* 表格 diff:行级整行底色,单元格级格子底色,词级 span 高亮 */
         .diff-table {{
@@ -384,6 +400,7 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
                 <span class="stat-pill pill-del">-{deleted_cnt} 删</span>
                 <span class="stat-pill pill-mod">~{modified_cnt} 改</span>
                 <span class="stat-pill pill-mov">⇅{moved_cnt} 移</span>
+                <span class="stat-pill pill-fmt">#{formatted_cnt} 格式</span>
             </div>
         </div>
         <div class="diff-grid">
