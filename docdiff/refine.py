@@ -1,7 +1,14 @@
 import difflib
+from .tokenize import tokenize
+from .seqdiff import diff_ops as seq_diff_ops
 
 SIM_THRESHOLD = 0.7
 POSITION_WINDOW = 2
+
+# 词级 LCS 的规模上限(len(ta) * len(tb))。
+# 超过则先走句级两级细化;句级也切不开(全文一句)时退回 difflib 兜底。
+# 理由:diff 工具卡住比 diff 得不够漂亮严重得多。
+MAX_TOKEN_PRODUCT = 500_000
 
 def _anchors(ops: list[dict]) -> list[tuple[int, int]]:
     res = []
@@ -20,54 +27,54 @@ def _expected_new_idx(old_idx: int, anchors: list[tuple[int, int]]) -> int:
             best_a_new = a_new
         else:
             break
-            
+
     if best_a_old == -1:
         return old_idx
-        
+
     return best_a_new + (old_idx - best_a_old)
 
 def pair_modified(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
     anchors = _anchors(ops)
-    
+
     deleted = [op for op in ops if op["op"] == "deleted"]
     inserted = [op for op in ops if op["op"] == "inserted"]
-    
+
     candidates = []
     for d_op in deleted:
         old_idx = d_op["old_idx"]
         for i_op in inserted:
             new_idx = i_op["new_idx"]
-            
+
             dist = abs(new_idx - _expected_new_idx(old_idx, anchors))
             if dist > POSITION_WINDOW:
                 continue
-                
+
             sim = difflib.SequenceMatcher(None, a[old_idx], b[new_idx]).ratio()
             if sim >= SIM_THRESHOLD:
                 candidates.append((sim, d_op, i_op))
-                
+
     candidates.sort(key=lambda x: x[0], reverse=True)
-    
+
     used_old = set()
     used_new = set()
     mod_ops = []
-    
+
     for sim, d_op, i_op in candidates:
         old_idx = d_op["old_idx"]
         new_idx = i_op["new_idx"]
-        
+
         if old_idx in used_old or new_idx in used_new:
             continue
-            
+
         used_old.add(old_idx)
         used_new.add(new_idx)
-        
+
         mod_ops.append({
             "op": "modified",
             "old_idx": old_idx,
             "new_idx": new_idx
         })
-        
+
     out_ops = []
     for op in ops:
         if op["op"] == "deleted" and op["old_idx"] in used_old:
@@ -75,18 +82,48 @@ def pair_modified(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
         if op["op"] == "inserted" and op["new_idx"] in used_new:
             continue
         out_ops.append(op)
-        
+
     out_ops.extend(mod_ops)
     out_ops.sort(key=lambda x: (x.get("old_idx", float("inf")), x.get("new_idx", float("inf"))))
-    
+
     return out_ops
 
-def inline_diff(old_text: str, new_text: str) -> list[dict]:
+# ---------------------------------------------------------------------------
+# 段内词级细化(v2 自研,替换 v1 的 difflib)
+# 输出契约与 v1 完全一致: [{"tag": "equal"|"delete"|"insert", "text": str}, ...]
+# ---------------------------------------------------------------------------
+
+def _merge_adjacent(items: list[dict]) -> list[dict]:
+    """合并相邻同 tag 项。
+    token 级会产出几十个碎片({"delete":"讲"},{"delete":"问"}...),
+    合并后是 {"delete":"讲问题"},渲染出来才不是一串闪烁的色块。
+    """
+    merged = []
+    for item in items:
+        if merged and merged[-1]["tag"] == item["tag"]:
+            merged[-1]["text"] += item["text"]
+        else:
+            merged.append({"tag": item["tag"], "text": item["text"]})
+    return merged
+
+def _tokens_diff(ta: list[str], tb: list[str]) -> list[dict]:
+    """token 列表 -> 契约格式(含碎片合并)。"""
+    ops = seq_diff_ops(ta, tb)
+    items = []
+    for op in ops:
+        if op["op"] == "unchanged":
+            items.append({"tag": "equal", "text": ta[op["old_idx"]]})
+        elif op["op"] == "deleted":
+            items.append({"tag": "delete", "text": ta[op["old_idx"]]})
+        else:
+            items.append({"tag": "insert", "text": tb[op["new_idx"]]})
+    return _merge_adjacent(items)
+
+def _fallback_diff(old_text: str, new_text: str) -> list[dict]:
+    """difflib 兜底(v1 实现原样保留),用于超长段落的最终降级。"""
     matcher = difflib.SequenceMatcher(None, old_text, new_text)
-    opcodes = matcher.get_opcodes()
     inline_ops = []
-    
-    for tag, i1, i2, j1, j2 in opcodes:
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
             inline_ops.append({"tag": "equal", "text": old_text[i1:i2]})
         elif tag == "delete":
@@ -96,5 +133,73 @@ def inline_diff(old_text: str, new_text: str) -> list[dict]:
         elif tag == "replace":
             inline_ops.append({"tag": "delete", "text": old_text[i1:i2]})
             inline_ops.append({"tag": "insert", "text": new_text[j1:j2]})
-            
     return inline_ops
+
+_SENTENCE_BOUNDARIES = "。!?;\n.!?;"
+
+def _split_sentences(text: str) -> list[str]:
+    """切句,保留分隔符,否则拼不回原文。"""
+    out = []
+    buf = []
+    for ch in text:
+        buf.append(ch)
+        if ch in _SENTENCE_BOUNDARIES:
+            out.append("".join(buf))
+            buf = []
+    if buf:
+        out.append("".join(buf))
+    return out
+
+def _diff_pair(old_text: str, new_text: str) -> list[dict]:
+    """对一个(句)对做词级细化;自身超规模时退回 difflib,防递归放大。"""
+    ta, tb = tokenize(old_text), tokenize(new_text)
+    if len(ta) * len(tb) <= MAX_TOKEN_PRODUCT:
+        return _tokens_diff(ta, tb)
+    return _fallback_diff(old_text, new_text)
+
+def _sentence_diff(old_text: str, new_text: str) -> list[dict]:
+    """长段落降级路径:先按句子对齐,再对配对上的句子对做词级细化。
+    修订的真实形态是"改了某几句",句级对齐把 dp 表从 字数×字数 降到
+    句数×句数 加 若干 句内词数×词数,典型输入下结果与全词级完全一致。
+    """
+    sa = _split_sentences(old_text)
+    sb = _split_sentences(new_text)
+    # 切句没切开(全文一句) -> 句级路径帮不上忙,直接兜底
+    if len(sa) <= 1 and len(sb) <= 1:
+        return _fallback_diff(old_text, new_text)
+
+    ops = seq_diff_ops(sa, sb)
+    items = []
+    i = 0
+    while i < len(ops):
+        if ops[i]["op"] == "unchanged":
+            items.append({"tag": "equal", "text": sa[ops[i]["old_idx"]]})
+            i += 1
+        elif ops[i]["op"] == "deleted":
+            # 收集连续的 deleted / inserted 句段,两两配成"替换对"做词级细化
+            dels = []
+            while i < len(ops) and ops[i]["op"] == "deleted":
+                dels.append(sa[ops[i]["old_idx"]])
+                i += 1
+            inss = []
+            while i < len(ops) and ops[i]["op"] == "inserted":
+                inss.append(sb[ops[i]["new_idx"]])
+                i += 1
+            pair_n = min(len(dels), len(inss))
+            for k in range(pair_n):
+                items.extend(_diff_pair(dels[k], inss[k]))
+            for rest in dels[pair_n:]:
+                items.append({"tag": "delete", "text": rest})
+            for rest in inss[pair_n:]:
+                items.append({"tag": "insert", "text": rest})
+        else:
+            items.append({"tag": "insert", "text": sb[ops[i]["new_idx"]]})
+            i += 1
+    return _merge_adjacent(items)
+
+def inline_diff(old_text: str, new_text: str) -> list[dict]:
+    """段内词级差异。契约与 v1 完全一致。"""
+    ta, tb = tokenize(old_text), tokenize(new_text)
+    if len(ta) * len(tb) <= MAX_TOKEN_PRODUCT:
+        return _tokens_diff(ta, tb)
+    return _sentence_diff(old_text, new_text)
