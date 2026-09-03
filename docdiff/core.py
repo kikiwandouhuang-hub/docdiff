@@ -2,6 +2,7 @@ from .parser import extract_blocks
 from .align import diff_ops, detect_moves
 from .refine import pair_modified, inline_diff
 from .seqdiff import trim_common
+from .tablediff import diff_table
 
 def diff_docx(old_path: str, new_path: str) -> list[dict]:
     a = extract_blocks(old_path)
@@ -43,8 +44,7 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
         if "new_idx" in new_op:
             new_op["new_idx"] += head
 
-        # 为合并成功的 modified 挂载段内差异
-        # (表格的 modified 在 V2-C 3.4 挂载行级 rows,这里先跳过)
+        # 为合并成功的 modified 挂载段内差异(表格由下方表格管线处理)
         if new_op["op"] == "modified" and a[new_op["old_idx"]].kind == "paragraph":
             old_text = a[new_op["old_idx"]].text
             new_text = b[new_op["new_idx"]].text
@@ -61,6 +61,18 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
             "old_idx": a_tail_start + i,
             "new_idx": b_tail_start + i
         })
+
+    # V2-C 表格内部 diff:对每个配对上的表格(unchanged 或 modified)跑行级 diff。
+    # 必须放在 ops 全部组装完之后:表格往往落在公共头/尾(表头指纹相同),
+    # 中段循环根本看不见它们。
+    for op in ops:
+        if op["op"] in ("unchanged", "modified"):
+            old_block = a[op["old_idx"]]
+            if old_block.kind == "table":
+                rows = diff_table(old_block.rows, b[op["new_idx"]].rows)
+                if any(r["op"] != "row_unchanged" for r in rows):
+                    op["op"] = "table_modified"
+                    op["rows"] = rows
 
     return ops
 
