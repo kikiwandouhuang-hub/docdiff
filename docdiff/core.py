@@ -1,22 +1,28 @@
-from .parser import extract_paragraphs
+from .parser import extract_blocks
 from .align import diff_ops, detect_moves
 from .refine import pair_modified, inline_diff
 from .seqdiff import trim_common
 
 def diff_docx(old_path: str, new_path: str) -> list[dict]:
-    a = extract_paragraphs(old_path)
-    b = extract_paragraphs(new_path)
+    a = extract_blocks(old_path)
+    b = extract_blocks(new_path)
+
+    # 用键对齐,用下标索引载荷:掐头去尾、LCS、移动检测、配对全部作用在 key() 上,
+    # 而 ops 里的 old_idx / new_idx 依然指向 a / b。
+    # 这个分离让后面加载荷字段(fmt、rows)不需要碰算法层一行。
+    keys_a = [x.key() for x in a]
+    keys_b = [x.key() for x in b]
 
     # 掐头去尾:公共前缀必属于某个最优解,数学上安全
-    head, tail = trim_common(a, b)
+    head, tail = trim_common(keys_a, keys_b)
 
-    mid_a = a[head : len(a) - tail] if tail > 0 else a[head:]
-    mid_b = b[head : len(b) - tail] if tail > 0 else b[head:]
+    mid_a = keys_a[head : len(keys_a) - tail] if tail > 0 else keys_a[head:]
+    mid_b = keys_b[head : len(keys_b) - tail] if tail > 0 else keys_b[head:]
 
     # 1. 算法内核处理
     mid_ops = diff_ops(mid_a, mid_b)
     mid_ops = detect_moves(mid_ops, mid_a, mid_b)
-    # 2. 接入 Day 8-9 的相似段落配对
+    # 2. 相似段落配对
     mid_ops = pair_modified(mid_ops, mid_a, mid_b)
 
     ops = []
@@ -32,11 +38,11 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
             new_op["old_idx"] += head
         if "new_idx" in new_op:
             new_op["new_idx"] += head
-        
+
         # 为合并成功的 modified 挂载段内差异
         if new_op["op"] == "modified":
-            old_text = a[new_op["old_idx"]]
-            new_text = b[new_op["new_idx"]]
+            old_text = a[new_op["old_idx"]].text
+            new_text = b[new_op["new_idx"]].text
             new_op["inline"] = inline_diff(old_text, new_text)
 
         ops.append(new_op)
