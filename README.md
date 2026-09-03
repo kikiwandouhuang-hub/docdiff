@@ -3,6 +3,7 @@
 [![Tests](https://github.com/kikiwandouhuang-hub/docdiff/actions/workflows/test.yml/badge.svg?job=pytest)](https://github.com/kikiwandouhuang-hub/docdiff/actions/workflows/test.yml)
 [![Lint](https://github.com/kikiwandouhuang-hub/docdiff/actions/workflows/test.yml/badge.svg?job=lint)](https://github.com/kikiwandouhuang-hub/docdiff/actions/workflows/test.yml)
 [![Python 3.10-3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://github.com/kikiwandouhuang-hub/docdiff)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ```bash
 pip install git+https://github.com/kikiwandouhuang-hub/docdiff.git
