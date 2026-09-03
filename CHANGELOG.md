@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased] — v2 开发中
+### Added
+- V2-A 自研词级 LCS 段内细化:零依赖规则分词器(tokenize.py,CJK 逐字 + 拉丁成词)
+  + 与领域无关的 seqdiff 通用对齐层 + 词级 inline_diff 替换 difflib
+- 长段落两级细化(句级对齐 + 句内词级),规模上限 500_000,全文无句界时 difflib 兜底
+- 性能基准(experiments/gen_big_docx.py),数字进 README
 ### Changed
 - 基于扫参实验，将段落相似度配对阈值 (`SIM_THRESHOLD`) 从 0.6 调整为 0.7，以优先控制误配代价。
 ### Changed
