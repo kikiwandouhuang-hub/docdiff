@@ -1,19 +1,19 @@
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 
-from .model import Block
+from .model import Block, FmtDict
 
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
-def _read_body(docx_path: str):
+def _read_body(docx_path: str) -> ET.Element | None:
     with zipfile.ZipFile(docx_path, 'r') as z:
         xml_bytes = z.read("word/document.xml")
     root = ET.fromstring(xml_bytes)
     return root.find(W_NS + "body")
 
 
-def _paragraph_text(p) -> str:
+def _paragraph_text(p: ET.Element) -> str:
     """把一个 w:p 下所有 w:t 拼起来。
     这里用 iter 是**对的**:段落内部的 run 嵌套(w:hyperlink / w:ins 里的 run)
     都应该被拼进来。递归在段落内是特性,在 body 层是 bug。
@@ -22,10 +22,10 @@ def _paragraph_text(p) -> str:
     return "".join(texts)
 
 
-def _run_fmt(rpr) -> dict:
+def _run_fmt(rpr: ET.Element | None) -> FmtDict:
     """单个 run 的格式指纹,只取五项(bold/italic/underline/size/color)。
     V2 只做直接格式:样式继承(w:pStyle -> styles.xml)不解析,这是已知边界。"""
-    fmt = {"bold": False, "italic": False, "underline": None, "size": None, "color": None}
+    fmt: FmtDict = {"bold": False, "italic": False, "underline": None, "size": None, "color": None}
     if rpr is None:
         return fmt
     for child in rpr:
@@ -50,36 +50,45 @@ def _run_fmt(rpr) -> dict:
     return fmt
 
 
-def _fmt_fingerprint(p) -> dict | None:
+def _fmt_fingerprint(p: ET.Element) -> FmtDict | None:
     """段落的格式指纹:取多数 run 的值;run 间不一致时记 mixed=True。
     没有 run 的段落(空段)返回 None,不参与格式对比。"""
     run_fmts = [_run_fmt(r.find(W_NS + "rPr")) for r in p.findall(W_NS + "r")]
     if not run_fmts:
         return None
-    out = {}
+    out: FmtDict = {}
     for attr in ("bold", "italic", "underline", "size", "color"):
         values = [f[attr] for f in run_fmts]
         if all(v == values[0] for v in values):
             out[attr] = values[0]
         else:
-            # 多数值;并列时取先出现的 run 的值(dict.fromkeys 保序去重)
-            out[attr] = max(dict.fromkeys(values), key=values.count)
+            # 多数值;并列取先出现的 run。只比较计数、不比较值本身:
+            # 部分 run 缺 w:sz 时 values 里是 [12.0, None] 这类混合,
+            # 直接 max() 会对 None 和 float 做 < 比较,Python 3 直接 TypeError。
+            counts: dict[object, int] = {}
+            for v in values:
+                counts[v] = counts.get(v, 0) + 1
+            best_v, best_c = values[0], -1
+            for v in values:
+                if counts[v] > best_c:
+                    best_v, best_c = v, counts[v]
+            out[attr] = best_v
             out["mixed"] = True
     out.setdefault("mixed", False)
     return out
 
 
-def _parse_paragraph(p) -> Block:
+def _parse_paragraph(p: ET.Element) -> Block:
     return Block(kind="paragraph", text=_paragraph_text(p), fmt=_fmt_fingerprint(p))
 
 
-def _cell_text(tc) -> str:
+def _cell_text(tc: ET.Element) -> str:
     """单元格内可能有多个段落,用换行连接。"""
     paras = [_paragraph_text(p) for p in tc.findall(W_NS + "p")]
     return "\n".join(paras)
 
 
-def _has_merged_cells(tc) -> bool:
+def _has_merged_cells(tc: ET.Element) -> bool:
     """检测 w:gridSpan(横向合并)或 w:vMerge(纵向合并)。"""
     tc_pr = tc.find(W_NS + "tcPr")
     if tc_pr is None:
@@ -90,7 +99,7 @@ def _has_merged_cells(tc) -> bool:
     )
 
 
-def _parse_table(tbl) -> Block:
+def _parse_table(tbl: ET.Element) -> Block:
     # findall 不递归,避开嵌套表格
     rows = []
     has_merged = False
@@ -114,7 +123,7 @@ def extract_blocks(docx_path: str) -> list[Block]:
     v1 的 body.iter(w:p) 是递归的,会把表格单元格里的段落混进段落流。
     """
     body = _read_body(docx_path)
-    blocks = []
+    blocks: list[Block] = []
     if body is None:
         return blocks
     for child in body:

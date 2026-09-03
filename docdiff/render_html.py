@@ -1,7 +1,9 @@
 import html
 
+from .model import Block, Op
 
-def _row_warnings(op: dict) -> list[str]:
+
+def _row_warnings(op: Op) -> list[str]:
     """收集行级 warning(如列数漂移),按首次出现顺序去重。"""
     warns = []
     for r in op.get("rows", []):
@@ -11,7 +13,7 @@ def _row_warnings(op: dict) -> list[str]:
     return warns
 
 
-def _count_table_stats(ops: list[dict]) -> tuple[int, int, int]:
+def _count_table_stats(ops: list[Op]) -> tuple[int, int, int]:
     """表格维度统计:(行增, 行删, 格改)。"""
     p = q = r = 0
     for op in ops:
@@ -27,7 +29,7 @@ def _count_table_stats(ops: list[dict]) -> tuple[int, int, int]:
     return p, q, r
 
 
-def _table_html(op: dict, side: str, a_block, b_block) -> str:
+def _table_html(op: Op, side: str, a_block: Block, b_block: Block) -> str:
     """渲染表格的一侧(side: "old" | "new")。三层底色:
     行级整行底色、单元格级格子底色、词级 span 高亮;
     moved 行两侧同色标记并注明来源/去向。"""
@@ -101,7 +103,7 @@ def _table_html(op: dict, side: str, a_block, b_block) -> str:
     return '<table class="diff-table">' + "".join(trs) + "</table>"
 
 
-def render(ops: list[dict], a, b, out_path: str) -> None:
+def render(ops: list[Op], a: list[Block], b: list[Block], out_path: str) -> None:
     inserted_cnt = sum(1 for op in ops if op["op"] in ("inserted", "insert"))
     deleted_cnt = sum(1 for op in ops if op["op"] in ("deleted", "delete"))
     modified_cnt = sum(1 for op in ops if op["op"] == "modified")
@@ -226,7 +228,8 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
             --text-main: #0f172a;
             --text-muted: #64748b;
             --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                monospace;
         }}
         body {{
             font-family: var(--font-sans);
@@ -320,12 +323,25 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
         /* 核心亮点：空白状态的高级斜线纹理 */
         .bg-empty {{ 
             background: #f8fafc;
-            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px);
+            background-image: repeating-linear-gradient(
+                45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px);
         }}
 
         /* 段内 Inline Token 渲染（圆润质感） */
-        .token-ins {{ background: #bbf7d0; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 500; }}
-        .token-del {{ background: #fecaca; color: #991b1b; padding: 2px 6px; border-radius: 4px; text-decoration: line-through; }}
+        .token-ins {{
+            background: #bbf7d0;
+            color: #166534;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }}
+        .token-del {{
+            background: #fecaca;
+            color: #991b1b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-decoration: line-through;
+        }}
 
         /* 移动标签 */
         .tag {{
@@ -363,7 +379,8 @@ def render(ops: list[dict], a, b, out_path: str) -> None:
         .row-mod td.cell-del {{ background: #fecaca; }}
         .row-mod td.cell-absent, .row-absent td {{
             background: #f8fafc;
-            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px);
+            background-image: repeating-linear-gradient(
+                45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px);
         }}
         .row-absent td {{ height: 36px; }}
         .tag-moved-row {{

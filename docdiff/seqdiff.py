@@ -2,7 +2,10 @@
 被 align.py(段落序列)、refine.py(token 序列)、tablediff.py(行序列)共用。
 这一层不知道什么是 docx,不知道什么是段落 —— 只认 Sequence[T] 和 ==。
 """
-from typing import Sequence, TypeVar
+from collections.abc import Sequence
+from typing import TypeVar
+
+from .model import Op
 
 T = TypeVar("T")
 
@@ -22,7 +25,7 @@ def lcs_table(a: Sequence[T], b: Sequence[T]) -> list[list[int]]:
     return dp
 
 
-def diff_ops(a: Sequence[T], b: Sequence[T]) -> list[dict]:
+def diff_ops(a: Sequence[T], b: Sequence[T]) -> list[Op]:
     """回溯 DP 表,输出操作列表,按新文档顺序排列。
     操作格式:
       {"op": "unchanged", "old_idx": i, "new_idx": j}

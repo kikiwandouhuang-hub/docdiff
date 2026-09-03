@@ -46,7 +46,7 @@ TABLE_NEW2 = TABLE_OLD[:2] + [["赵六", "财务部", "负责预算管理"]] + T
 
 TABLE_NEW3 = [TABLE_OLD[0], TABLE_OLD[1], TABLE_OLD[3], TABLE_OLD[2]]  # 王五上移
 
-TABLE_NEW4 = [r + [v] for r, v in zip(TABLE_OLD, ["状态", "在职", "在职", "在职"])]  # 插列
+TABLE_NEW4 = [r + [v] for r, v in zip(TABLE_OLD, ["状态", "在职", "在职", "在职"], strict=True)]  # 插列
 
 
 def _para(text: str) -> str:

@@ -1,6 +1,7 @@
 from pathlib import Path
-from docdiff.parser import extract_paragraphs
+
 from docdiff.core import diff_docx
+from docdiff.parser import extract_paragraphs
 
 SAMPLES = Path(__file__).parent.parent / "samples"
 OLD = str(SAMPLES / "old.docx")

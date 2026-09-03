@@ -1,15 +1,17 @@
 import argparse
-import sys
 import json
+import sys
+from typing import Any
+
 from . import SCHEMA, __version__
-from .parser import extract_blocks
 from .core import diff_docx
-from .model import block_to_dict, block_from_dict
-from .render_term import render as render_term
+from .model import Block, Op, block_from_dict, block_to_dict
+from .parser import extract_blocks
 from .render_html import render as render_html
+from .render_term import render as render_term
 
 
-def _stats(ops: list[dict]) -> dict:
+def _stats(ops: list[Op]) -> dict[str, int]:
     """文档级变更统计。total 恒等于各分量之和,这是一个不变量。"""
     stats = {
         "inserted": sum(1 for op in ops if op["op"] in ("inserted", "insert")),
@@ -23,8 +25,10 @@ def _stats(ops: list[dict]) -> dict:
     return stats
 
 
-def build_envelope(old_path: str, new_path: str, ops: list[dict], a, b,
-                   embed: bool) -> dict:
+def build_envelope(
+    old_path: str, new_path: str, ops: list[Op], a: list[Block], b: list[Block],
+    embed: bool,
+) -> dict[str, Any]:
     """JSON 信封。默认轻量(blocks 留空),--embed-text 时自包含。"""
     return {
         "schema": SCHEMA,
@@ -42,7 +46,7 @@ def _error(msg: str, code: str, suggestion: str) -> None:
     sys.exit(2)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="docdiff - Office-CLI 风格的 Word 文档对比工具"
     )

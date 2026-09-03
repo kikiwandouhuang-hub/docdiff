@@ -1,5 +1,5 @@
-import pytest
 from docdiff.refine import _expected_new_idx, pair_modified
+
 
 # 用例 1：就地修改 (dist=0 的候选正常配成 modified - 回归保护)
 def test_in_place_modification():
@@ -18,8 +18,15 @@ def test_in_place_modification():
 # 用例 2：远距离模板句 (amb_old vs amb_new -> 0 个 modified, 1删1增)
 def test_distant_template():
     # 模拟 samples 中第 3 段被删，在第 10 段被添加
-    a = ["背景", "架构", "项目编号：2023-A-001", "占位4", "占位5", "占位6", "占位7", "占位8", "占位9", "结束"]
-    b = ["背景", "架构", "占位4", "占位5", "占位6", "占位7", "占位8", "占位9", "结束", "项目编号：2024-B-002"]
+    a = [
+        "背景", "架构", "项目编号：2023-A-001",
+        "占位4", "占位5", "占位6", "占位7", "占位8", "占位9", "结束",
+    ]
+    b = [
+        "背景", "架构",
+        "占位4", "占位5", "占位6", "占位7", "占位8", "占位9", "结束",
+        "项目编号：2024-B-002",
+    ]
     ops = [
         {"op": "unchanged", "old_idx": 0, "new_idx": 0},
         {"op": "unchanged", "old_idx": 1, "new_idx": 1},

@@ -92,3 +92,27 @@ equal+delete 按序拼接 == 旧文本,equal+insert == 新文本。写成测试�
 
 指纹对比挂在 core.py 后置钩子里(与表格钩子同位置):unchanged 且指纹不同 →
 formatted 并挂 changes;modified 直接挂 changes(文本+格式同时变不产生新 op 类型)。
+
+**6.1 lint/类型检查进 CI——这一天挖出两个真东西:**
+
+1. **ruff --fix 会删 re-export。** align.py 的 `from .seqdiff import diff_ops  # re-export`
+   被 F401 当未使用导入自动删掉,core.py 的 `from .align import diff_ops` 当场
+   ImportError。教训:re-export 是"看不见的使用",宁可删掉兼容层改直连导入,
+   也别让 F401 有机会误杀。以后 --fix 之后必须再跑一遍全量测试。
+2. **mypy strict 抓出一个真崩溃。** _fmt_fingerprint 的多数规则用
+   `max(dict.fromkeys(values), key=values.count)`,values 里一旦混入 None
+   (部分 run 缺 w:sz 的常见情形,如 [12.0, None, None]),max 会对 None 和
+   float 做 < 比较——Python 3 直接 TypeError。修法:只比较计数、不比较值,
+   顺带保住"并列取先出现"的确定性。写了两个回归测试钉死。
+   这是"类型检查不是装饰"的最好证据。
+
+其他决策:
+- ops IR 统一成 `Op = dict[str, Any]`(model.py):三层 op 键名各不相同,
+  建 TypedDict 联合要 30+ 行还挡不住 JSON 边界,宽松类型是诚实的选择。
+- tests/ 加 __init__.py,mypy 的 `tests.*` override 才能命中(无包的脚本
+  模块名是文件名本身);tests 放宽四项,experiments 直接 ignore_errors
+  (一次性脚本 + matplotlib 桩不全)。
+- gen_term_png.py 的 sys.path 引导必须写在 matplotlib import 之前,
+  ruff 的 I001 在这里是错的——per-file-ignores 豁免并写明理由。
+- 3.10 兼容性本地验证:ast.parse(feature_version=(3,10)) 全量过一遍,
+  CI 矩阵防的是运行时行为差异,语法差异本地就能兜。

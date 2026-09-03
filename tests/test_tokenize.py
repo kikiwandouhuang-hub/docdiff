@@ -1,5 +1,6 @@
 import re
-from docdiff.tokenize import tokenize, _is_cjk
+
+from docdiff.tokenize import _is_cjk, tokenize
 
 
 def _normalize_ws(text: str) -> str:

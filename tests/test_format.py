@@ -4,7 +4,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 from docdiff.core import diff_docx
-from docdiff.parser import _fmt_fingerprint, _run_fmt, W_NS
+from docdiff.parser import W_NS, _fmt_fingerprint, _run_fmt
 from docdiff.refine import fmt_changes
 
 S = "samples/"
@@ -118,6 +118,27 @@ def test_fmt_fingerprint_unanimous_not_mixed():
 
 def test_fmt_fingerprint_no_runs_is_none():
     assert _fmt_fingerprint(_p("<w:pPr/>")) is None
+
+
+def test_fmt_fingerprint_mixed_size_no_crash():
+    # 回归:部分 run 缺 w:sz(size=None)时 values 是 [12.0, None, None] 这类混合,
+    # 修复前 max() 对 None 和 float 做 < 比较,Python 3 直接 TypeError 崩溃
+    p = _p(
+        '<w:r><w:rPr><w:sz w:val="24"/></w:rPr></w:r>'
+        "<w:r><w:rPr/></w:r>"
+        "<w:r><w:rPr/></w:r>"
+    )
+    fmt = _fmt_fingerprint(p)
+    assert fmt["size"] is None  # None 占多数,取多数
+    assert fmt["mixed"] is True
+
+
+def test_fmt_fingerprint_tie_first_occurrence():
+    # 并列(12.0 vs None 各一次)取先出现的 run,且这个比较不能碰值本身
+    p = _p('<w:r><w:rPr><w:sz w:val="24"/></w:rPr></w:r>' "<w:r><w:rPr/></w:r>")
+    fmt = _fmt_fingerprint(p)
+    assert fmt["size"] == 12.0
+    assert fmt["mixed"] is True
 
 
 def test_fmt_changes():

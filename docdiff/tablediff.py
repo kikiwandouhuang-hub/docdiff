@@ -18,7 +18,7 @@ row_modified 再携带 cells。行/单元格两级都复用 seqdiff 通用层,
   {"op":"cell_inserted"/"cell_deleted", ...}
 """
 from .align import detect_moves
-from .model import CELL_SEP
+from .model import CELL_SEP, Op
 from .refine import inline_diff
 from .seqdiff import diff_ops, trim_common
 
@@ -39,10 +39,10 @@ def row_similarity(row_a: list[str], row_b: list[str]) -> float:
     n = max(len(row_a), len(row_b))
     if n == 0:
         return 1.0
-    return sum(1 for ca, cb in zip(row_a, row_b) if ca == cb) / n
+    return sum(1 for ca, cb in zip(row_a, row_b, strict=False) if ca == cb) / n
 
 
-def _to_row_ops(ops: list[dict]) -> list[dict]:
+def _to_row_ops(ops: list[Op]) -> list[Op]:
     """seqdiff 的 old_idx/new_idx 键名换成行级 old_row/new_row。"""
     out = []
     for op in ops:
@@ -57,13 +57,13 @@ def _to_row_ops(ops: list[dict]) -> list[dict]:
     return out
 
 
-def diff_row(cells_a: list[str], cells_b: list[str]) -> list[dict]:
+def diff_row(cells_a: list[str], cells_b: list[str]) -> list[Op]:
     """单元格级比对。列数相同时逐列直比(绝大多数情况);
     列数不同时对单元格文本跑一次列级 LCS 处理列增删——
     这就是插列不会崩的原因:它退化成一次列级 LCS。"""
     if len(cells_a) == len(cells_b):
         cell_ops = []
-        for i, (ca, cb) in enumerate(zip(cells_a, cells_b)):
+        for i, (ca, cb) in enumerate(zip(cells_a, cells_b, strict=False)):
             if ca == cb:
                 cell_ops.append({"op": "cell_unchanged", "old_col": i, "new_col": i})
             else:
@@ -76,7 +76,9 @@ def diff_row(cells_a: list[str], cells_b: list[str]) -> list[dict]:
     cell_ops = []
     for op in diff_ops(cells_a, cells_b):
         if op["op"] == "unchanged":
-            cell_ops.append({"op": "cell_unchanged", "old_col": op["old_idx"], "new_col": op["new_idx"]})
+            cell_ops.append({
+                "op": "cell_unchanged", "old_col": op["old_idx"], "new_col": op["new_idx"],
+            })
         elif op["op"] == "deleted":
             cell_ops.append({"op": "cell_deleted", "old_col": op["old_idx"]})
         else:
@@ -84,7 +86,7 @@ def diff_row(cells_a: list[str], cells_b: list[str]) -> list[dict]:
     return cell_ops
 
 
-def _pair_rows(ops: list[dict], rows_a: list[list[str]], rows_b: list[list[str]]) -> list[dict]:
+def _pair_rows(ops: list[Op], rows_a: list[list[str]], rows_b: list[list[str]]) -> list[Op]:
     """剩余 row_deleted + row_inserted 对,配成 row_modified。两条证据,任一成立即可:
     1. 行相似度 >= ROW_SIM_THRESHOLD(内容证据);
     2. 新旧位置相同(位置证据)——单格行改内容时相似度为 0,
@@ -106,7 +108,7 @@ def _pair_rows(ops: list[dict], rows_a: list[list[str]], rows_b: list[list[str]]
     used_old = set()
     used_new = set()
     mod_ops = []
-    for sim, same_pos, d_op, i_op in candidates:
+    for _sim, _same_pos, d_op, i_op in candidates:
         old_row, new_row = d_op["old_row"], i_op["new_row"]
         if old_row in used_old or new_row in used_new:
             continue
@@ -141,7 +143,7 @@ def _pair_rows(ops: list[dict], rows_a: list[list[str]], rows_b: list[list[str]]
     return out
 
 
-def diff_table(rows_a: list[list[str]], rows_b: list[list[str]]) -> list[dict]:
+def diff_table(rows_a: list[list[str]], rows_b: list[list[str]]) -> list[Op]:
     """表格内部 diff:输出行级 ops(见模块 docstring 的契约)。"""
     keys_a = [_row_key(r) for r in rows_a]
     keys_b = [_row_key(r) for r in rows_b]

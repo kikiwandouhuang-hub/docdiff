@@ -5,9 +5,10 @@ v2: 渲染 Block 流。table_modified 用 ASCII 边框画出整表,
     行级颜色语义与段落一致:绿 + 增 / 红 - 删 / 黄 ↑↓ 移 / 黄 ~ 改,
     单元格内 inline 高亮与段落段内细化同一套配色。
 """
-import sys
 import os
+import sys
 
+from .model import Block, Op
 from .tokenize import _is_cjk
 
 
@@ -69,7 +70,9 @@ def _truncate_segments(segs: list[tuple[str, str]], max_w: int) -> list[tuple[st
     return out
 
 
-def _row_display(rows_ops: list[dict], rows_a: list[list[str]], rows_b: list[list[str]]):
+def _row_display(
+    rows_ops: list[Op], rows_a: list[list[str]], rows_b: list[list[str]]
+) -> list[tuple[str, str, list[list[tuple[str, str]]]]]:
     """行级 ops -> [(marker, kind, cells)]。
     cells 的每个元素是 [(tag, text)] 分段,tag 为 plain/delete/insert;
     inline 的 equal 归并成 plain。单元格内换行用 ¶ 表示。"""
@@ -147,7 +150,9 @@ def _cell_str(segs: list[tuple[str, str]], kind: str, width: int) -> str:
     return "".join(chunks) + " " * (width - w)
 
 
-def _draw_table(rows_ops: list[dict], rows_a: list[list[str]], rows_b: list[list[str]]) -> list[str]:
+def _draw_table(
+    rows_ops: list[Op], rows_a: list[list[str]], rows_b: list[list[str]]
+) -> list[str]:
     """ASCII 边框表,行标记列在最左。第一行后画表头分隔线。"""
     disp = _row_display(rows_ops, rows_a, rows_b)
     n_cols = max((len(cells) for _, _, cells in disp), default=0)
@@ -171,7 +176,7 @@ def _draw_table(rows_ops: list[dict], rows_a: list[list[str]], rows_b: list[list
     bot = "└" + seg + "".join("┴" + "─" * (w + 2) for w in widths) + "┘"
 
     lines = [f"{GREY}{top}{RESET}"]
-    for i, ((marker, kind, _), cells) in enumerate(zip(disp, trunc)):
+    for i, ((marker, kind, _), cells) in enumerate(zip(disp, trunc, strict=False)):
         # 标记列的右竖线同时是第一单元格的左竖线,不能重复画
         body = f"{GREY}│{RESET}" + f"{_marker_color(kind)}{marker}{RESET}"
         for j in range(shown):
@@ -187,7 +192,7 @@ def _draw_table(rows_ops: list[dict], rows_a: list[list[str]], rows_b: list[list
     return lines
 
 
-def _row_warnings(op: dict) -> list[str]:
+def _row_warnings(op: Op) -> list[str]:
     """收集行级 warning(如列数漂移),按首次出现顺序去重。"""
     warns = []
     for r in op.get("rows", []):
@@ -197,7 +202,7 @@ def _row_warnings(op: dict) -> list[str]:
     return warns
 
 
-def render(ops: list[dict], a, b) -> None:
+def render(ops: list[Op], a: list[Block], b: list[Block]) -> None:
     """在终端格式化打印彩色对比结果。a / b 是 list[Block]。"""
     for op in ops:
         op_type = op["op"]
@@ -224,7 +229,8 @@ def render(ops: list[dict], a, b) -> None:
             new_idx = op["new_idx"]
             text = b[new_idx].text
             print(
-                f"{YELLOW}⇅ [{old_idx + 1}→{new_idx + 1}] ⇅ 从第{old_idx + 1}段移至第{new_idx + 1}段: {text}{RESET}"
+                f"{YELLOW}⇅ [{old_idx + 1}→{new_idx + 1}] ⇅ 从第{old_idx + 1}段移至"
+                f"第{new_idx + 1}段: {text}{RESET}"
             )
 
         elif op_type == "modified":

@@ -6,12 +6,19 @@ from contextlib import redirect_stdout
 from docdiff.core import diff_docx
 from docdiff.model import Block
 from docdiff.parser import extract_blocks
+from docdiff.render_html import render as render_html
 from docdiff.render_term import (
-    RESET, GREY, GREEN, RED, YELLOW, RED_INLINE, GREEN_INLINE,
-    _disp_w, _truncate_segments, _draw_table,
+    GREEN,
+    GREEN_INLINE,
+    GREY,
+    RED,
+    RED_INLINE,
+    YELLOW,
+    _disp_w,
+    _draw_table,
+    _truncate_segments,
 )
 from docdiff.render_term import render as render_term
-from docdiff.render_html import render as render_html
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 S = "samples/tbl_"
@@ -29,7 +36,8 @@ def _term_output(old_name: str, new_name: str) -> str:
 def _html_output(old_name: str, new_name: str) -> str:
     a = extract_blocks(S + old_name + ".docx")
     b = extract_blocks(S + new_name + ".docx")
-    render_html(diff_docx(S + old_name + ".docx", S + new_name + ".docx"), a, b, "/tmp/docdiff_test.html")
+    ops = diff_docx(S + old_name + ".docx", S + new_name + ".docx")
+    render_html(ops, a, b, "/tmp/docdiff_test.html")
     return open("/tmp/docdiff_test.html", encoding="utf-8").read()
 
 
@@ -125,11 +133,11 @@ def test_table_border_alignment_all_samples():
     for n in ["new1", "new2", "new3", "new4"]:
         lines = ANSI.sub("", _term_output("old", n)).splitlines()
         for block in _table_blocks(lines):
-            widths = {sum(_disp_w(c) for c in l) for l in block}
+            widths = {sum(_disp_w(c) for c in ln) for ln in block}
             assert len(widths) == 1, f"{n}: 行宽不一致 {sorted(widths)}"
             pipes0 = _pipe_positions(block[0])
-            for l in block:
-                assert _pipe_positions(l) == pipes0, f"{n}: 竖线错位 {l!r}"
+            for ln in block:
+                assert _pipe_positions(ln) == pipes0, f"{n}: 竖线错位 {ln!r}"
 
 
 # ---- 合并单元格警告(Block.fmt) ----
@@ -174,7 +182,7 @@ def test_draw_table_wide_cell_truncated():
     lines = _draw_table(ops, rows, rows)
     plain = ANSI.sub("", "".join(lines))
     assert "…" in plain
-    widths = {sum(_disp_w(c) for c in ANSI.sub("", l)) for l in lines}
+    widths = {sum(_disp_w(c) for c in ANSI.sub("", ln)) for ln in lines}
     assert len(widths) == 1
 
 

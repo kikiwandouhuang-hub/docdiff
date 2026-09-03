@@ -1,4 +1,6 @@
-from docdiff.align import diff_ops, detect_moves
+from docdiff.align import detect_moves
+from docdiff.seqdiff import diff_ops
+
 
 def assert_indices_complete(ops, a, b):
     """
@@ -15,8 +17,12 @@ def assert_indices_complete(ops, a, b):
             new_indices.append(op["new_idx"])
             
     # 增加详细报错信息，一旦失败能立刻看清缺了哪个、多了哪个
-    assert sorted(old_indices) == list(range(len(a))), f"old_idx 错乱! 收集到: {sorted(old_indices)}, 期望: {list(range(len(a)))}"
-    assert sorted(new_indices) == list(range(len(b))), f"new_idx 错乱! 收集到: {sorted(new_indices)}, 期望: {list(range(len(b)))}"
+    assert sorted(old_indices) == list(range(len(a))), (
+        f"old_idx 错乱! 收集到: {sorted(old_indices)}, 期望: {list(range(len(a)))}"
+    )
+    assert sorted(new_indices) == list(range(len(b))), (
+        f"new_idx 错乱! 收集到: {sorted(new_indices)}, 期望: {list(range(len(b)))}"
+    )
 
 
 def test_identical():

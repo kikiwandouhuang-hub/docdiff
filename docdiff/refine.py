@@ -1,7 +1,10 @@
 import difflib
-from .tokenize import tokenize
+from collections.abc import Sequence
+from typing import Any
+
+from .model import CELL_SEP, Block, FmtDict, Op
 from .seqdiff import diff_ops as seq_diff_ops
-from .model import Block, CELL_SEP
+from .tokenize import tokenize
 
 SIM_THRESHOLD = 0.7
 POSITION_WINDOW = 2
@@ -15,8 +18,8 @@ TABLE_SIM_THRESHOLD = 0.5
 # 理由:diff 工具卡住比 diff 得不够漂亮严重得多。
 MAX_TOKEN_PRODUCT = 500_000
 
-def _anchors(ops: list[dict]) -> list[tuple[int, int]]:
-    res = []
+def _anchors(ops: list[Op]) -> list[tuple[int, int]]:
+    res: list[tuple[int, int]] = []
     for op in ops:
         if op["op"] == "unchanged":
             res.append((op["old_idx"], op["new_idx"]))
@@ -79,7 +82,7 @@ def table_similarity(ta: Block, tb: Block) -> float:
         )
     return row_cov
 
-def _pair_sim(xa, xb):
+def _pair_sim(xa: Block | str, xb: Block | str) -> float | None:
     """配对相似度:段落按文本比,表格按行级 LCS 覆盖率比;跨 kind 永不配对。"""
     if isinstance(xa, Block) and isinstance(xb, Block):
         if xa.kind == xb.kind == "table":
@@ -90,7 +93,7 @@ def _pair_sim(xa, xb):
     key_b = xb if isinstance(xb, str) else xb.key()
     return difflib.SequenceMatcher(None, key_a, key_b).ratio()
 
-def pair_modified(ops: list[dict], a: list, b: list) -> list[dict]:
+def pair_modified(ops: list[Op], a: Sequence[Block | str], b: Sequence[Block | str]) -> list[Op]:
     """把 deleted+inserted 对按相似度合并为 modified。
 
     a / b 兼容两种载荷:v1 的 list[str](段落键)与 v2 的 list[Block];
@@ -114,10 +117,8 @@ def pair_modified(ops: list[dict], a: list, b: list) -> list[dict]:
             sim = _pair_sim(a[old_idx], b[new_idx])
             if sim is None:
                 continue
-            is_table = (
-                isinstance(a[old_idx], Block)
-                and a[old_idx].kind == "table"
-            )
+            xa = a[old_idx]
+            is_table = isinstance(xa, Block) and xa.kind == "table"
             threshold = TABLE_SIM_THRESHOLD if is_table else SIM_THRESHOLD
             if sim >= threshold:
                 candidates.append((sim, d_op, i_op))
@@ -128,7 +129,7 @@ def pair_modified(ops: list[dict], a: list, b: list) -> list[dict]:
     used_new = set()
     mod_ops = []
 
-    for sim, d_op, i_op in candidates:
+    for _sim, d_op, i_op in candidates:
         old_idx = d_op["old_idx"]
         new_idx = i_op["new_idx"]
 
@@ -162,12 +163,12 @@ def pair_modified(ops: list[dict], a: list, b: list) -> list[dict]:
 # 输出契约与 v1 完全一致: [{"tag": "equal"|"delete"|"insert", "text": str}, ...]
 # ---------------------------------------------------------------------------
 
-def _merge_adjacent(items: list[dict]) -> list[dict]:
+def _merge_adjacent(items: list[dict[str, str]]) -> list[dict[str, str]]:
     """合并相邻同 tag 项。
     token 级会产出几十个碎片({"delete":"讲"},{"delete":"问"}...),
     合并后是 {"delete":"讲问题"},渲染出来才不是一串闪烁的色块。
     """
-    merged = []
+    merged: list[dict[str, str]] = []
     for item in items:
         if merged and merged[-1]["tag"] == item["tag"]:
             merged[-1]["text"] += item["text"]
@@ -175,7 +176,7 @@ def _merge_adjacent(items: list[dict]) -> list[dict]:
             merged.append({"tag": item["tag"], "text": item["text"]})
     return merged
 
-def _tokens_diff(ta: list[str], tb: list[str]) -> list[dict]:
+def _tokens_diff(ta: list[str], tb: list[str]) -> list[dict[str, str]]:
     """token 列表 -> 契约格式(含碎片合并)。"""
     ops = seq_diff_ops(ta, tb)
     items = []
@@ -188,10 +189,10 @@ def _tokens_diff(ta: list[str], tb: list[str]) -> list[dict]:
             items.append({"tag": "insert", "text": tb[op["new_idx"]]})
     return _merge_adjacent(items)
 
-def _fallback_diff(old_text: str, new_text: str) -> list[dict]:
+def _fallback_diff(old_text: str, new_text: str) -> list[dict[str, str]]:
     """difflib 兜底(v1 实现原样保留),用于超长段落的最终降级。"""
     matcher = difflib.SequenceMatcher(None, old_text, new_text)
-    inline_ops = []
+    inline_ops: list[dict[str, str]] = []
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
             inline_ops.append({"tag": "equal", "text": old_text[i1:i2]})
@@ -219,14 +220,14 @@ def _split_sentences(text: str) -> list[str]:
         out.append("".join(buf))
     return out
 
-def _diff_pair(old_text: str, new_text: str) -> list[dict]:
+def _diff_pair(old_text: str, new_text: str) -> list[dict[str, str]]:
     """对一个(句)对做词级细化;自身超规模时退回 difflib,防递归放大。"""
     ta, tb = tokenize(old_text), tokenize(new_text)
     if len(ta) * len(tb) <= MAX_TOKEN_PRODUCT:
         return _tokens_diff(ta, tb)
     return _fallback_diff(old_text, new_text)
 
-def _sentence_diff(old_text: str, new_text: str) -> list[dict]:
+def _sentence_diff(old_text: str, new_text: str) -> list[dict[str, str]]:
     """长段落降级路径:先按句子对齐,再对配对上的句子对做词级细化。
     修订的真实形态是"改了某几句",句级对齐把 dp 表从 字数×字数 降到
     句数×句数 加 若干 句内词数×词数,典型输入下结果与全词级完全一致。
@@ -238,7 +239,7 @@ def _sentence_diff(old_text: str, new_text: str) -> list[dict]:
         return _fallback_diff(old_text, new_text)
 
     ops = seq_diff_ops(sa, sb)
-    items = []
+    items: list[dict[str, str]] = []
     i = 0
     while i < len(ops):
         if ops[i]["op"] == "unchanged":
@@ -266,7 +267,7 @@ def _sentence_diff(old_text: str, new_text: str) -> list[dict]:
             i += 1
     return _merge_adjacent(items)
 
-def inline_diff(old_text: str, new_text: str) -> list[dict]:
+def inline_diff(old_text: str, new_text: str) -> list[dict[str, str]]:
     """段内词级差异。契约与 v1 完全一致。"""
     ta, tb = tokenize(old_text), tokenize(new_text)
     if len(ta) * len(tb) <= MAX_TOKEN_PRODUCT:
@@ -274,11 +275,11 @@ def inline_diff(old_text: str, new_text: str) -> list[dict]:
     return _sentence_diff(old_text, new_text)
 
 
-def fmt_changes(fmt_a: dict | None, fmt_b: dict | None) -> list[dict]:
+def fmt_changes(fmt_a: FmtDict | None, fmt_b: FmtDict | None) -> list[dict[str, Any]]:
     """格式指纹对比,输出 [{"attr","old","new"},...]。None 视为无指纹不比较。"""
     if not fmt_a or not fmt_b:
         return []
-    out = []
+    out: list[dict[str, Any]] = []
     for attr in ("bold", "italic", "underline", "size", "color"):
         if fmt_a.get(attr) != fmt_b.get(attr):
             out.append({"attr": attr, "old": fmt_a.get(attr), "new": fmt_b.get(attr)})

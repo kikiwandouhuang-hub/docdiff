@@ -1,10 +1,12 @@
+from .align import detect_moves
+from .model import Op
 from .parser import extract_blocks
-from .align import diff_ops, detect_moves
-from .refine import pair_modified, inline_diff, fmt_changes
-from .seqdiff import trim_common
+from .refine import fmt_changes, inline_diff, pair_modified
+from .seqdiff import diff_ops, trim_common
 from .tablediff import diff_table
 
-def diff_docx(old_path: str, new_path: str) -> list[dict]:
+
+def diff_docx(old_path: str, new_path: str) -> list[Op]:
     a = extract_blocks(old_path)
     b = extract_blocks(new_path)
 
@@ -30,7 +32,7 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
     mid_blocks_b = b[head : len(b) - tail] if tail > 0 else b[head:]
     mid_ops = pair_modified(mid_ops, mid_blocks_a, mid_blocks_b)
 
-    ops = []
+    ops: list[Op] = []
 
     # 补齐头部 unchanged
     for i in range(head):
@@ -84,7 +86,8 @@ def diff_docx(old_path: str, new_path: str) -> list[dict]:
     return ops
 
 if __name__ == "__main__":
-    import sys, json
+    import json
+    import sys
     ops = diff_docx(sys.argv[1], sys.argv[2])
     for op in ops:
         print(json.dumps(op, ensure_ascii=False))
