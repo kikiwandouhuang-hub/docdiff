@@ -1,32 +1,11 @@
-def lcs_table(a: list[str], b: list[str]) -> list[list[int]]:
-    m, n = len(a), len(b)
-    dp = [[0] * (n + 1) for _ in range(m + 1)]
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if a[i - 1] == b[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
-            else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-    return dp
-
-def diff_ops(a: list[str], b: list[str]) -> list[dict]:
-    dp = lcs_table(a, b)
-    ops = []
-    i, j = len(a), len(b)
-    while i > 0 or j > 0:
-        if i > 0 and j > 0 and a[i - 1] == b[j - 1]:
-            ops.append({"op": "unchanged", "old_idx": i - 1, "new_idx": j - 1})
-            i -= 1
-            j -= 1
-        elif j > 0 and (i == 0 or dp[i][j - 1] >= dp[i - 1][j]):
-            ops.append({"op": "inserted", "new_idx": j - 1})
-            j -= 1
-        else:
-            ops.append({"op": "deleted", "old_idx": i - 1})
-            i -= 1
-    return list(reversed(ops))
+"""align.py — 段落序列对齐(基于通用 seqdiff 层)"""
+from .seqdiff import lcs_table, diff_ops  # re-export,兼容既有调用方
 
 def detect_moves(ops: list[dict], a: list[str], b: list[str]) -> list[dict]:
+    """把'文本完全相同的 deleted+inserted 对'改判为 moved。
+    输出中 moved 的格式: {"op": "moved", "old_idx": i, "new_idx": j}
+    重复段落歧义用"按文档顺序贪心配对"解决。
+    """
     deleted_items = []
     inserted_items = []
     for op in ops:

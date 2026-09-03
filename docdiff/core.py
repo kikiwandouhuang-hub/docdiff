@@ -1,22 +1,14 @@
 from .parser import extract_paragraphs
 from .align import diff_ops, detect_moves
 from .refine import pair_modified, inline_diff
+from .seqdiff import trim_common
 
 def diff_docx(old_path: str, new_path: str) -> list[dict]:
     a = extract_paragraphs(old_path)
     b = extract_paragraphs(new_path)
 
-    head = 0
-    min_len = min(len(a), len(b))
-    while head < min_len and a[head] == b[head]:
-        head += 1
-
-    tail = 0
-    while (
-        tail < min_len - head
-        and a[len(a) - 1 - tail] == b[len(b) - 1 - tail]
-    ):
-        tail += 1
+    # 掐头去尾:公共前缀必属于某个最优解,数学上安全
+    head, tail = trim_common(a, b)
 
     mid_a = a[head : len(a) - tail] if tail > 0 else a[head:]
     mid_b = b[head : len(b) - tail] if tail > 0 else b[head:]
